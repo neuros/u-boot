@@ -21,6 +21,10 @@
 # MA 02111-1307 USA
 #
 
+ifndef PRJROOT
+$(error You must first source the BSP environment: "source neuros-env")
+endif
+
 VERSION = 1
 PATCHLEVEL = 3
 SUBLEVEL = 2
@@ -412,6 +416,10 @@ $(obj)System.map:	$(obj)u-boot
 		@$(NM) $< | \
 		grep -v '\(compiled\)\|\(\.o$$\)\|\( [aUw] \)\|\(\.\.ng$$\)\|\(LASH[RL]DI\)' | \
 		sort > $(obj)System.map
+
+install: u-boot.bin u-boot
+	@install -p u-boot.bin $(PRJROOT)/images/ > /dev/null
+	@install -p u-boot $(PRJROOT)/images/ > /dev/null
 
 #
 # Auto-generate the autoconf.mk file (which is included by all makefiles)
@@ -2359,6 +2367,9 @@ davinci_schmoogie_config :	unconfig
 
 davinci_sonata_config :	unconfig
 	@$(MKCONFIG) $(@:_config=) arm arm926ejs sonata davinci davinci
+
+davinci_ntosd_644xA_config : unconfig
+	@$(MKCONFIG) $(@:_config=) arm arm926ejs ntosd-644xA davinci davinci
 
 omap1610inn_config \
 omap1610inn_cs0boot_config \

@@ -109,30 +109,36 @@
 /*==============================*/
 #undef 	CONFIG_USE_IRQ			/* No IRQ/FIQ in U-Boot */
 #define CONFIG_MISC_INIT_R
-#undef CONFIG_BOOTDELAY
-#define CONFIG_BOOTFILE		"uImage"	/* Boot file name */
+#define CONFIG_BOOTDELAY	3
+#define CONFIG_BOOTFILE		"/images/uImage"/* Boot file name */
 #define CFG_PROMPT		"U-Boot > "	/* Monitor Command Prompt */
 #define CFG_CBSIZE		1024		/* Console I/O Buffer Size  */
 #define CFG_PBSIZE		(CFG_CBSIZE+sizeof(CFG_PROMPT)+16)	/* Print buffer sz */
 #define CFG_MAXARGS		16		/* max number of command args */
 #define CFG_BARGSIZE		CFG_CBSIZE	/* Boot Argument Buffer Size */
 #define CFG_LOAD_ADDR		0x80700000	/* default Linux kernel load address */
+#define CONFIG_LOADADDR		CFG_LOAD_ADDR
 #define CONFIG_VERSION_VARIABLE
 #define CONFIG_AUTO_COMPLETE		/* Won't work with hush so far, may be later */
-#define CFG_HUSH_PARSER
 #define CFG_PROMPT_HUSH_PS2	"> "
 #define CONFIG_CMDLINE_EDITING
 #define CFG_LONGHELP
 #define CONFIG_CRC32_VERIFY
 #define CONFIG_MX_CYCLIC
+
+#define CONFIG_HOSTNAME		neuros-osd
+#define CONFIG_IPADDR		192.168.1.100
+#define CONFIG_SERVERIP		192.168.1.1
+#define CONFIG_GATEWAYIP	192.168.1.1
+#define CONFIG_NETMASK		255.255.255.0
+
 /*===================*/
 /* Linux Information */
 /*===================*/
 #define LINUX_BOOT_PARAM_ADDR	0x80000100
 #define CONFIG_CMDLINE_TAG
 #define CONFIG_SETUP_MEMORY_TAGS
-#define CONFIG_BOOTARGS		"mem=120M console=ttyS0,115200n8 root=/dev/hda1 rw noinitrd ip=dhcp"
-#define CONFIG_BOOTCOMMAND	"setenv setboot setenv bootargs \\$(bootargs) video=dm64xxfb:output=\\$(videostd);run setboot"
+#define CONFIG_BOOTARGS		""
 /*=================*/
 /* U-Boot commands */
 /*=================*/

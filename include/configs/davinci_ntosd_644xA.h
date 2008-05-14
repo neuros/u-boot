@@ -107,6 +107,8 @@
 /*==============================*/
 /* U-Boot general configuration */
 /*==============================*/
+#define CONFIG_MMC 
+#define CONFIG_DOS_PARTITION
 #undef 	CONFIG_USE_IRQ			/* No IRQ/FIQ in U-Boot */
 #define CONFIG_MISC_INIT_R
 #define CONFIG_BOOTDELAY	3
@@ -152,12 +154,14 @@
 #define CONFIG_CMD_SAVES
 #define CONFIG_CMD_DATE
 #define CONFIG_CMD_NAND
+#define CONFIG_CMD_MMCSD		/* neuros ntosd davinci MMC/SD support			*/
 #undef CONFIG_CMD_EEPROM
 #undef CONFIG_CMD_BDI
 #undef CONFIG_CMD_FPGA
 #undef CONFIG_CMD_SETGETDCR
 #undef CONFIG_CMD_FLASH
 #undef CONFIG_CMD_IMLS
+#define CONFIG_CMD_FAT		/* FAT support			*/
 /*=======================*/
 /* KGDB support (if any) */
 /*=======================*/

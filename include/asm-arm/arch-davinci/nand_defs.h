@@ -102,6 +102,12 @@ typedef volatile nand_registers	*nandregs;
 #define NAND_Ecc_P512e		(1 << 9)
 #define NAND_Ecc_P1024e		(1 << 10)
 #define NAND_Ecc_P2048e		(1 << 11)
+#ifdef NTOSD_644XA
+#define NAND_Ecc_P4096e		(1 << 12)
+#define NAND_Ecc_P8192e		(1 << 13)
+#define NAND_Ecc_P16384e	(1 << 14)
+#define NAND_Ecc_P32768e	(1 << 15)
+#endif
 
 #define NAND_Ecc_P1o		(1 << 16)
 #define NAND_Ecc_P2o		(1 << 17)
@@ -115,11 +121,22 @@ typedef volatile nand_registers	*nandregs;
 #define NAND_Ecc_P512o		(1 << 25)
 #define NAND_Ecc_P1024o		(1 << 26)
 #define NAND_Ecc_P2048o		(1 << 27)
+#ifdef NTOSD_644XA
+#define NAND_Ecc_P4096o		(1 << 28)
+#define NAND_Ecc_P8192o		(1 << 29)
+#define NAND_Ecc_P16384o	(1 << 30)
+#define NAND_Ecc_P32768o	(1 << 31)
+#endif
 
 #define TF(v)			(v ? 1 : 0)
 
+#ifdef NTOSD_644XA
+#define P32768e(a)		(TF(a & NAND_Ecc_P32768e) << 0)
+#define P32768o(a)		(TF(a & NAND_Ecc_P32768o) << 1)
+#else
 #define P2048e(a)		(TF(a & NAND_Ecc_P2048e) << 0)
 #define P2048o(a)		(TF(a & NAND_Ecc_P2048o) << 1)
+#endif
 #define P1e(a)			(TF(a & NAND_Ecc_P1e) << 2)
 #define P1o(a)			(TF(a & NAND_Ecc_P1o) << 3)
 #define P2e(a)			(TF(a & NAND_Ecc_P2e) << 4)
@@ -144,6 +161,17 @@ typedef volatile nand_registers	*nandregs;
 #define P512o(a)		(TF(a & NAND_Ecc_P512o) << 5)
 #define P1024e(a)		(TF(a & NAND_Ecc_P1024e) << 6)
 #define P1024o(a)		(TF(a & NAND_Ecc_P1024o) << 7)
+
+#ifdef NTOSD_644XA
+#define P2048e(a)		(TF(a & NAND_Ecc_P2048e) << 0)
+#define P2048o(a)		(TF(a & NAND_Ecc_P2048o) << 1)
+#define P4096e(a)		(TF(a & NAND_Ecc_P4096e) << 2)
+#define P4096o(a)		(TF(a & NAND_Ecc_P4096o) << 3)
+#define P8192e(a)		(TF(a & NAND_Ecc_P8192e) << 4)
+#define P8192o(a)		(TF(a & NAND_Ecc_P8192o) << 5)
+#define P16384e(a)		(TF(a & NAND_Ecc_P16384e) << 6)
+#define P16384o(a)		(TF(a & NAND_Ecc_P16384o) << 7)
+#endif
 
 #define P8e_s(a)		(TF(a & NAND_Ecc_P8e) << 0)
 #define P8o_s(a)		(TF(a & NAND_Ecc_P8o) << 1)

@@ -87,6 +87,28 @@ static void nand_davinci_select_chip(struct mtd_info *mtd, int chip)
 }
 
 #ifdef CFG_NAND_HW_ECC
+#ifdef NTOSD_644XA
+/* follow the DAVINCI 6446 OOB stucture */
+#ifdef CFG_NAND_LARGEPAGE
+static struct nand_oobinfo davinci_nand_oobinfo = {
+	.useecc = MTD_NANDECC_AUTOPLACE,
+	.eccbytes = 16,
+	.eccpos = {8, 9, 10, 11, 24, 25, 26, 27, 40, 41, 42, 43, 56, 57, 58, 59},
+	.oobfree = { {2, 6}, {12, 12}, {28, 12}, {44, 12}, {60, 4} }
+};
+#elif defined(CFG_NAND_SMALLPAGE)
+static struct nand_oobinfo davinci_nand_oobinfo = {
+	.useecc = MTD_NANDECC_AUTOPLACE,
+	.eccbytes = 4,
+	.eccpos = {0, 1, 2, 3},
+	.oobfree = { {6, 2}, {8, 8} }
+};
+#else
+#error "Either CFG_NAND_LARGEPAGE or CFG_NAND_SMALLPAGE must be defined!"
+#endif
+
+#else  /* not NTOSD_644XA */
+
 #ifdef CFG_NAND_LARGEPAGE
 static struct nand_oobinfo davinci_nand_oobinfo = {
 	.useecc = MTD_NANDECC_AUTOPLACE,
@@ -104,6 +126,8 @@ static struct nand_oobinfo davinci_nand_oobinfo = {
 #else
 #error "Either CFG_NAND_LARGEPAGE or CFG_NAND_SMALLPAGE must be defined!"
 #endif
+
+#endif /* NTOSD_644XA */
 
 static void nand_davinci_enable_hwecc(struct mtd_info *mtd, int mode)
 {
@@ -138,6 +162,185 @@ static u_int32_t nand_davinci_readecc(struct mtd_info *mtd, u_int32_t region)
 
 	return(ecc);
 }
+
+#ifdef NTOSD_644XA
+
+static int nand_davinci_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
+{
+	u_int32_t		tmp;
+	int			region, n;
+	struct nand_chip	*this = mtd->priv;
+
+	n = (this->eccmode == NAND_ECC_HW16_2048) ? 4 : 1;
+
+	region = 1;
+	while (n--) {
+		tmp = nand_davinci_readecc(mtd, region);
+		*ecc_code++ = tmp >> 24;
+		*ecc_code++ = tmp >> 16;
+		*ecc_code++ = tmp >> 8;
+		*ecc_code++ = tmp;
+		region++;
+	}
+	return(0);
+}
+
+static void nand_davinci_gen_true_ecc(u_int8_t *ecc_buf)
+{
+	u_int32_t tmp = (ecc_buf[0] << 24) | (ecc_buf[1] << 16) | (ecc_buf[2] << 8) | ecc_buf[3];
+
+	ecc_buf[0] = ~( P64o(tmp)    | P64e(tmp)    | P32o(tmp)    | P32e(tmp)   | 
+		        P16o(tmp)    | P16e(tmp)    | P8o(tmp)     | P8e(tmp)    );
+	ecc_buf[1] = ~( P1024o(tmp)  | P1024e(tmp)  | P512o(tmp)   | P512e(tmp)  | 
+		        P256o(tmp)   | P256e(tmp)   | P128o(tmp)   | P128e(tmp)  );
+	ecc_buf[2] = ~( P16384o(tmp) | P16384e(tmp) | P8192o(tmp)  | P8192e(tmp) | 
+			P4096o(tmp)  | P4096e(tmp)  | P2048o(tmp)  | P2048e(tmp) );
+	ecc_buf[3] = ~( P4o(tmp)     | P4e(tmp)     | P2o(tmp)     | P2e(tmp)    | 
+			P1o(tmp)     | P1e(tmp)     | P32768o(tmp) | P32768e(tmp));
+}
+
+static int nand_davinci_compare_ecc(u_int8_t *ecc_nand, u_int8_t *ecc_calc, u_int8_t *page_data)
+{
+	u_int32_t	i;
+	u_int8_t	tmp0_bit[8], tmp1_bit[8], tmp2_bit[8], tmp3_bit[8];
+	u_int8_t	comp0_bit[8], comp1_bit[8], comp2_bit[8], comp3_bit[8];
+	u_int8_t	ecc_bit[32];
+	u_int8_t	ecc_sum = 0;
+	u_int8_t	find_bit = 0;
+	u_int32_t	find_byte = 0;
+	int		is_ecc_ff;
+
+	is_ecc_ff = ((*ecc_nand == 0xff) && (*(ecc_nand + 1) == 0xff) 
+		     && (*(ecc_nand + 2) == 0xff) && (*(ecc_nand + 3) == 0xff));
+
+	nand_davinci_gen_true_ecc(ecc_nand);
+	nand_davinci_gen_true_ecc(ecc_calc);
+
+	for (i = 0; i <= 3; i++) {
+		*(ecc_nand + i) = ~(*(ecc_nand + i));
+		*(ecc_calc + i) = ~(*(ecc_calc + i));
+	}
+
+	for (i = 0; i < 8; i++) {
+		tmp0_bit[i] = *ecc_nand % 2;
+		*ecc_nand = *ecc_nand / 2;
+	}
+
+	for (i = 0; i < 8; i++) {
+		tmp1_bit[i] = *(ecc_nand + 1) % 2;
+		*(ecc_nand + 1) = *(ecc_nand + 1) / 2;
+	}
+
+	for (i = 0; i < 8; i++) {
+		tmp2_bit[i] = *(ecc_nand + 2) % 2;
+		*(ecc_nand + 2) = *(ecc_nand + 2) / 2;
+	}
+
+	for (i = 0; i < 8; i++) {
+		tmp3_bit[i] = *(ecc_nand + 3) % 2;
+		*(ecc_nand + 3) = *(ecc_nand + 3) / 2;
+	}
+
+	for (i = 0; i < 8; i++) {
+		comp0_bit[i] = *ecc_calc % 2;
+		*ecc_calc = *ecc_calc / 2;
+	}
+
+	for (i = 0; i < 8; i++) {
+		comp1_bit[i] = *(ecc_calc + 1) % 2;
+		*(ecc_calc + 1) = *(ecc_calc + 1) / 2;
+	}
+
+	for (i = 0; i < 8; i++) {
+		comp2_bit[i] = *(ecc_calc + 2) % 2;
+		*(ecc_calc + 2) = *(ecc_calc + 2) / 2;
+	}
+
+	for (i = 0; i < 8; i++) {
+		comp3_bit[i] = *(ecc_calc + 3) % 2;
+		*(ecc_calc + 3) = *(ecc_calc + 3) / 2;
+	}
+
+	for (i = 0; i< 6; i++)
+		ecc_bit[i] = tmp3_bit[i + 2] ^ comp3_bit[i + 2];
+
+	for (i = 0; i < 8; i++)
+		ecc_bit[i + 6] = tmp0_bit[i] ^ comp0_bit[i];
+
+	for (i = 0; i < 8; i++)
+		ecc_bit[i + 14] = tmp1_bit[i] ^ comp1_bit[i];
+
+	for (i = 0; i < 8; i++)
+		ecc_bit[i + 22] = tmp2_bit[i] ^ comp2_bit[i];
+
+	ecc_bit[30] = tmp3_bit[0] ^ comp3_bit[0];
+	ecc_bit[31] = tmp3_bit[1] ^ comp3_bit[1];
+
+	for (i = 0; i < 32; i++)
+		ecc_sum += ecc_bit[i];
+	switch (ecc_sum) {
+		case 0:
+			/* Not reached because this function is not called if
+			   ECC values are equal */
+			return 0;
+		case 1:
+			/* Uncorrectable error */
+			DEBUG (MTD_DEBUG_LEVEL0, "ECC UNCORRECTED_ERROR 1\n");
+			return(-1);
+		case 16:
+			/* Correctable error */
+			find_byte = (ecc_bit[31] << 11) +
+				(ecc_bit[29] << 10) +
+				(ecc_bit[27] << 9) +
+				(ecc_bit[25] << 8) +
+				(ecc_bit[23] << 7) +
+				(ecc_bit[21] << 6) +
+				(ecc_bit[19] << 5) +
+				(ecc_bit[17] << 4) +
+				(ecc_bit[15] << 3) +
+				(ecc_bit[13] << 2) +
+				(ecc_bit[11]  << 1) +
+				ecc_bit[9];
+
+			find_bit = (ecc_bit[7] << 3) + (ecc_bit[5] << 2) + (ecc_bit[3] << 1) + ecc_bit[1];
+
+			DEBUG (MTD_DEBUG_LEVEL0, "Correcting single bit ECC error at offset: %d, bit: %d\n", find_byte, find_bit);
+
+			page_data[find_byte] ^= (1 << find_bit);
+
+			return(0);
+		default:
+			if (is_ecc_ff) {
+				if (ecc_calc[0] == 0 && ecc_calc[1] == 0 && ecc_calc[2] == 0 && ecc_calc[3] == 0)
+					return(0);
+			}
+			DEBUG (MTD_DEBUG_LEVEL0, "UNCORRECTED_ERROR default\n");
+			return(-1);
+	}
+}
+
+static int nand_davinci_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_char *calc_ecc)
+{
+	struct nand_chip	*this;
+	int			block_count = 0, i, rc;
+
+	this = mtd->priv;
+	block_count = (this->eccmode == NAND_ECC_HW16_2048) ? 4 : 1;
+	for (i = 0; i < block_count; i++) {
+		if (memcmp(read_ecc, calc_ecc, 4) != 0) {
+			rc = nand_davinci_compare_ecc(read_ecc, calc_ecc, dat);
+			if (rc < 0) {
+				return(rc);
+			}
+		}
+		read_ecc += 4;
+		calc_ecc += 4;
+		dat += 512;
+	}
+	return(0);
+}
+
+#else /* not NTOSD_644XA */
 
 static int nand_davinci_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
 {
@@ -291,7 +494,8 @@ static int nand_davinci_correct_data(struct mtd_info *mtd, u_char *dat, u_char *
 	}
 	return(0);
 }
-#endif
+#endif /* NTOSD_644XA */
+#endif /* CFG_NAND_HW_ECC */
 
 static int nand_davinci_dev_ready(struct mtd_info *mtd)
 {
@@ -357,6 +561,16 @@ int board_nand_init(struct nand_chip *nand)
 	nand->options	  = NAND_USE_FLASH_BBT;
 #endif
 #ifdef CFG_NAND_HW_ECC
+
+#ifdef NTOSD_644XA
+#ifdef CFG_NAND_LARGEPAGE
+	nand->eccmode     = NAND_ECC_HW16_2048;
+#elif defined(CFG_NAND_SMALLPAGE)
+	nand->eccmode     = NAND_ECC_HW4_512;
+#else
+#error "Either CFG_NAND_LARGEPAGE or CFG_NAND_SMALLPAGE must be defined!"
+#endif
+#else  /* not NTOSD_644XA */
 #ifdef CFG_NAND_LARGEPAGE
 	nand->eccmode     = NAND_ECC_HW12_2048;
 #elif defined(CFG_NAND_SMALLPAGE)
@@ -364,6 +578,7 @@ int board_nand_init(struct nand_chip *nand)
 #else
 #error "Either CFG_NAND_LARGEPAGE or CFG_NAND_SMALLPAGE must be defined!"
 #endif
+#endif  /* NTOSD_644XA */
 	nand->autooob	  = &davinci_nand_oobinfo;
 	nand->calculate_ecc = nand_davinci_calculate_ecc;
 	nand->correct_data  = nand_davinci_correct_data;

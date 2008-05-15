@@ -2499,10 +2499,11 @@ int nand_scan (struct mtd_info *mtd, int maxchips)
 	 * fallback to software ECC
 	*/
 	this->eccsize = 256;	/* set default eccsize */
-	this->eccbytes = 3;
+	this->eccbytes = this->autooob->eccbytes;
 
 	switch (this->eccmode) {
 	case NAND_ECC_HW12_2048:
+	case NAND_ECC_HW16_2048:
 		if (mtd->oobblock < 2048) {
 			printk(KERN_WARNING "2048 byte HW ECC not possible on %d byte page size, fallback to SW ECC\n",
 			       mtd->oobblock);
@@ -2514,6 +2515,7 @@ int nand_scan (struct mtd_info *mtd, int maxchips)
 		break;
 
 	case NAND_ECC_HW3_512:
+	case NAND_ECC_HW4_512:
 	case NAND_ECC_HW6_512:
 	case NAND_ECC_HW8_512:
 		if (mtd->oobblock == 256) {
@@ -2548,12 +2550,14 @@ int nand_scan (struct mtd_info *mtd, int maxchips)
 	*/
 	switch (this->eccmode) {
 	case NAND_ECC_HW12_2048:
+	case NAND_ECC_HW16_2048:
 		this->eccbytes += 4;
 	case NAND_ECC_HW8_512:
 		this->eccbytes += 2;
 	case NAND_ECC_HW6_512:
 		this->eccbytes += 3;
 	case NAND_ECC_HW3_512:
+	case NAND_ECC_HW4_512:
 	case NAND_ECC_HW3_256:
 		if (this->calculate_ecc && this->correct_data && this->enable_hwecc)
 			break;
@@ -2566,9 +2570,11 @@ int nand_scan (struct mtd_info *mtd, int maxchips)
 	/* Set the number of read / write steps for one page to ensure ECC generation */
 	switch (this->eccmode) {
 	case NAND_ECC_HW12_2048:
+	case NAND_ECC_HW16_2048:
 		this->eccsteps = mtd->oobblock / 2048;
 		break;
 	case NAND_ECC_HW3_512:
+	case NAND_ECC_HW4_512:
 	case NAND_ECC_HW6_512:
 	case NAND_ECC_HW8_512:
 		this->eccsteps = mtd->oobblock / 512;

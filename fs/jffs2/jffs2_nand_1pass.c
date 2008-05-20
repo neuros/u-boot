@@ -815,7 +815,9 @@ jffs2_1pass_build_lists(struct part_info * part)
 		return 0;
 
 	for (i = 0; i < nr_blocks; i++) {
+#if !defined(NTOSD_644XA)
 		printf("\b\b%c ", spinner[counter++ % sizeof(spinner)]);
+#endif
 
 		offset = part->offset + i * sectorsize;
 

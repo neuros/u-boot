@@ -417,9 +417,10 @@ $(obj)System.map:	$(obj)u-boot
 		grep -v '\(compiled\)\|\(\.o$$\)\|\( [aUw] \)\|\(\.\.ng$$\)\|\(LASH[RL]DI\)' | \
 		sort > $(obj)System.map
 
-install: u-boot.bin u-boot
+install: u-boot.bin u-boot 
 	@install -p u-boot.bin $(PRJROOT)/images/ > /dev/null
 	@install -p u-boot $(PRJROOT)/images/ > /dev/null
+	@install uboot_desc $(PRJROOT)/images/ > /dev/null
 
 #
 # Auto-generate the autoconf.mk file (which is included by all makefiles)

@@ -93,6 +93,7 @@
 #define CONFIG_SKIP_RELOCATE_UBOOT	/* to a proper address, init done */
 #define CFG_NAND_BASE		0x02000000
 #define CFG_NAND_HW_ECC
+#define CONFIG_MTD_NAND_VERIFY_WRITE
 #define CFG_MAX_NAND_DEVICE	1	/* Max number of NAND devices */
 #define NAND_MAX_CHIPS		1
 #define CFG_ENV_OFFSET		0x0	/* Block 0--not used by bootcode */

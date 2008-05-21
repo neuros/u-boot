@@ -2499,7 +2499,7 @@ int nand_scan (struct mtd_info *mtd, int maxchips)
 	 * fallback to software ECC
 	*/
 	this->eccsize = 256;	/* set default eccsize */
-	this->eccbytes = this->autooob->eccbytes;
+	this->eccbytes = 3;
 
 	switch (this->eccmode) {
 	case NAND_ECC_HW12_2048:
@@ -2549,15 +2549,17 @@ int nand_scan (struct mtd_info *mtd, int maxchips)
 	 * calculation step
 	*/
 	switch (this->eccmode) {
-	case NAND_ECC_HW12_2048:
 	case NAND_ECC_HW16_2048:
+		this->eccbytes += 4;
+	case NAND_ECC_HW12_2048:
 		this->eccbytes += 4;
 	case NAND_ECC_HW8_512:
 		this->eccbytes += 2;
 	case NAND_ECC_HW6_512:
-		this->eccbytes += 3;
-	case NAND_ECC_HW3_512:
+		this->eccbytes += 2;
 	case NAND_ECC_HW4_512:
+		this->eccbytes += 1;
+	case NAND_ECC_HW3_512:
 	case NAND_ECC_HW3_256:
 		if (this->calculate_ecc && this->correct_data && this->enable_hwecc)
 			break;

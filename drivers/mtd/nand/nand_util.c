@@ -49,6 +49,19 @@ typedef struct mtd_info	  mtd_info_t;
 #define cpu_to_je16(x) (x)
 #define cpu_to_je32(x) (x)
 
+/*------yaffs---------*/
+typedef struct {
+    unsigned chunkId:20;
+    unsigned serialNumber:2;
+    unsigned byteCount:10;
+    unsigned objectId:18;
+    unsigned ecc:12;
+    unsigned deleted:1;
+    unsigned unusedStuff:1;
+    unsigned shouldBeFF;
+
+} yaffs_PackedTags1;
+
 /*****************************************************************************/
 static int nand_block_bad_scrub(struct mtd_info *mtd, loff_t ofs, int getchip)
 {
@@ -303,6 +316,12 @@ int nand_write_opts(nand_info_t *meminfo, const nand_write_options_t *opts)
 	size_t written;
 	int result;
 
+	yaffs_PackedTags1 pt1;
+    unsigned i, j;
+    unsigned ecc = 0;
+    unsigned bit = 0;
+
+
 	if (opts->pad && opts->writeoob) {
 		printf("Can't pad when oob data is present.\n");
 		return -1;
@@ -346,7 +365,10 @@ int nand_write_opts(nand_info_t *meminfo, const nand_write_options_t *opts)
 	if (opts->forcejffs2 || opts->forceyaffs) {
 		struct nand_oobinfo *oobsel =
 			opts->forcejffs2 ? &jffs2_oobinfo : &yaffs_oobinfo;
-
+#ifdef CFG_NAND_YAFFS1_NEW_OOB_LAYOUT
+       /* jffs2_oobinfo matches 2.6.18+ MTD nand_oob_16 ecclayout */
+       oobsel = &jffs2_oobinfo;
+#endif
 		if (meminfo->oobsize == 8) {
 			if (opts->forceyaffs) {
 				printf("YAFSS cannot operate on "
@@ -447,6 +469,35 @@ int nand_write_opts(nand_info_t *meminfo, const nand_write_options_t *opts)
 			memcpy(oob_buf, buffer, meminfo->oobsize);
 			buffer += meminfo->oobsize;
 
+           if (opts->forceyaffs) {
+#ifdef CFG_NAND_YAFFS1_NEW_OOB_LAYOUT
+               /* translate OOB for yaffs1 on Linux 2.6.18+ */
+			oob_buf[15] = oob_buf[12];
+			oob_buf[14] = oob_buf[11];
+			/*
+			oob_buf[13] = (oob_buf[7] & 0x3f)
+						| (oob_buf[5] == 'Y' ? 0 : 0x80)
+						| (oob_buf[4] == 0 ? 0 : 0x40);
+			*/
+			oob_buf[13] = oob_buf[7];
+			oob_buf[12] = oob_buf[6];
+			oob_buf[11] = oob_buf[3];
+			oob_buf[10] = oob_buf[2];
+			oob_buf[9]  = oob_buf[1];
+			oob_buf[8]  = oob_buf[0];
+			memset(oob_buf, 0xff, 8);
+
+			memcpy(&pt1,oob_buf+8,8);
+			pt1.serialNumber = 0;
+			memcpy(oob_buf+8,&pt1,8);
+#else
+               /* set the ECC bytes to 0xff so MTD will
+                  calculate it */
+               int i;
+               for (i = 0; i < meminfo->oobinfo.eccbytes; i++)
+                   oob_buf[meminfo->oobinfo.eccpos[i]] = 0xff;
+#endif
+           }
 			/* write OOB data first, as ecc will be placed
 			 * in there*/
 			result = meminfo->write_oob(meminfo,

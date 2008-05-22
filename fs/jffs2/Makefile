@@ -26,7 +26,7 @@ include $(TOPDIR)/config.mk
 LIB	= $(obj)libjffs2.a
 
 AOBJS	=
-COBJS-y += jffs2_1pass.o
+COBJS-y += jffs2_nand_1pass.o
 COBJS-y += compr_rtime.o
 COBJS-y += compr_rubin.o
 COBJS-y += compr_zlib.o

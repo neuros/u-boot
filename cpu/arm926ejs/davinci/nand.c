@@ -176,6 +176,7 @@ static int nand_davinci_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u
 	region = 1;
 	while (n--) {
 		tmp = nand_davinci_readecc(mtd, region);
+		if(tmp == 0) tmp = ~tmp;
 		*ecc_code++ = tmp >> 24;
 		*ecc_code++ = tmp >> 16;
 		*ecc_code++ = tmp >> 8;

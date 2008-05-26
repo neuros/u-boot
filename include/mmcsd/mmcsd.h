@@ -1,3 +1,22 @@
+/*
+ * Copyright (C) 2006 - 2008 Neuros Technology LLC.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; only support version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ */
+#ifndef MMCSD_H
+#define MMCSD_H
 #include<mmcsd/itmmcsd.h>
 #include<asm/types.h>
 #include<part.h>
@@ -5,14 +24,6 @@
 #define mb() __asm__ __volatile__ ("" : : : "memory")
 #define rmb() mb()
 #define wmb() mb()
-
-#define mmc_outb(v,a)	(*((volatile u8  *)(a)) = (v))
-#define mmc_outw(v,a)	(*((volatile u16 *)(a)) = (v))
-#define mmc_outl(v,a)	(*((volatile u32   *)(a)) = (v))
-
-#define mmc_inb(a)		(*(volatile u8  *)(a))
-#define mmc_inw(a)		(*(volatile u16 *)(a))
-#define mmc_inl(a)		(*(volatile u32   *)(a))
 
 struct mmc_request;
 
@@ -135,4 +146,6 @@ static int mmc_select_card(struct mmc_card *);
 int mmc_detect(void);
 
 unsigned int bus_change_to_4_bit(struct mmc_card *);
+
+#endif
 

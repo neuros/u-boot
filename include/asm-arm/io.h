@@ -112,7 +112,7 @@ extern void __raw_readsl(unsigned int addr, void *data, int longlen);
 /*
  * Now, pick up the machine-defined IO definitions
  */
-#if 0	/* XXX###XXX */
+#if defined(NTOSD_644XA)	/* XXX###XXX */
 #include <asm/arch/io.h>
 #endif	/* XXX###XXX */
 

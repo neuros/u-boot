@@ -26,7 +26,7 @@
 #include <mmcsd/mmcsd.h>
 #include <mmcsd/protocol.h>
 #include <mmcsd/card.h>
-#include <mmcsd/io_registers.h>
+#include <asm-arm/arch-davinci/io_registers.h>
 #include <mmcsd/mmc_debug.h>
 #include <mmcsd/itmmcsd.h>
 
@@ -65,22 +65,22 @@ void init_clocks(void)
     unsigned int reg = 0;
 
     /* disable clock */
-    mmc_outl(0,IO_MMC_MEM_CLK_CONTROL);
+    outl(0,IO_MMC_MEM_CLK_CONTROL);
     wmb();
     
     udelay(500);
 
     /* set mmc clock to ~ 400 kHz */ /* 338 KHZ */
-    mmc_outl(0x80,IO_MMC_MEM_CLK_CONTROL);
+    outl(0x80,IO_MMC_MEM_CLK_CONTROL);
     wmb();
     udelay(500);
 
     /* enable clock */
-    reg = mmc_inl(IO_MMC_MEM_CLK_CONTROL);
+    reg = inl(IO_MMC_MEM_CLK_CONTROL);
     rmb();
-    mmc_outl(reg | 0x0100, IO_MMC_MEM_CLK_CONTROL);
+    outl(reg | 0x0100, IO_MMC_MEM_CLK_CONTROL);
     wmb();
-    reg = mmc_inl(IO_MMC_MEM_CLK_CONTROL);
+    reg = inl(IO_MMC_MEM_CLK_CONTROL);
     rmb();
 }
 
@@ -90,53 +90,53 @@ static void host_configuration(void)
 
     /* support mmc sd and ms card in the same slot */
     /*
-    reg = mmc_inl(IO_CLK_MOD2);
-    mmc_outl(reg & (~(0x4000)), IO_CLK_MOD2); // disable ms clk 
-    reg = mmc_inl(IO_CLK_MOD2);
-    mmc_outl(0, IO_MEM_STICK_MODE);
-    reg = mmc_inl(IO_CLK_MOD2);
-    mmc_outl(reg | 0x0800, IO_CLK_MOD2);      // enable mmc clk 
+    reg = inl(IO_CLK_MOD2);
+    outl(reg & (~(0x4000)), IO_CLK_MOD2); // disable ms clk 
+    reg = inl(IO_CLK_MOD2);
+    outl(0, IO_MEM_STICK_MODE);
+    reg = inl(IO_CLK_MOD2);
+    outl(reg | 0x0800, IO_CLK_MOD2);      // enable mmc clk 
     */
 
     /* enable mmc/sd module */
-    while(mmc_inl(IO_PTSTAT)&1);
-    reg=mmc_inl(IO_MDCTL15);
-    mmc_outl(reg|0x3, IO_MDCTL15);
+    while(inl(IO_PTSTAT)&1);
+    reg=inl(IO_MDCTL15);
+    outl(reg|0x3, IO_MDCTL15);
     wmb();
-    reg=mmc_inl(IO_MDCTL15);
+    reg=inl(IO_MDCTL15);
     rmb();
-    mmc_outl(reg|(1<<9), IO_MDCTL15);
+    outl(reg|(1<<9), IO_MDCTL15);
     wmb();
-    mmc_outl(1, IO_PTCMD);
+    outl(1, IO_PTCMD);
     wmb();
-    while(mmc_inl(IO_PTSTAT)&1);
+    while(inl(IO_PTSTAT)&1);
 
     /* bring the controller to reset state */
-    mmc_outl(0x01, IO_MMC_CONTROL);
+    outl(0x01, IO_MMC_CONTROL);
     wmb();
-    mmc_outl(0x02, IO_MMC_CONTROL);
+    outl(0x02, IO_MMC_CONTROL);
     wmb();
-    reg = mmc_inl(IO_MMC_CONTROL);
+    reg = inl(IO_MMC_CONTROL);
     rmb();
 
     init_clocks();
 
-    mmc_outl(0x0200 | 0x0400 | 0x3, IO_MMC_CONTROL);
+    outl(0x0200 | 0x0400 | 0x3, IO_MMC_CONTROL);
 
     /*Data timeout register*/
     /*
-    reg = mmc_inl (IO_MMC_RESPONSE_TIMEOUT);
-    mmc_outl(reg | 0x1F00,IO_MMC_RESPONSE_TIMEOUT);
+    reg = inl (IO_MMC_RESPONSE_TIMEOUT);
+    outl(reg | 0x1F00,IO_MMC_RESPONSE_TIMEOUT);
     */
-    mmc_outl(0xFFFF,IO_MMC_RESPONSE_TIMEOUT);
-    mmc_outl(0xFFFF,IO_MMC_READ_TIMEOUT);
+    outl(0xFFFF,IO_MMC_RESPONSE_TIMEOUT);
+    outl(0xFFFF,IO_MMC_READ_TIMEOUT);
 
     /* release controller reset state */
-    reg = mmc_inl(IO_MMC_CONTROL);
-    mmc_outl(reg & ~(1),IO_MMC_CONTROL);
-    reg = mmc_inl(IO_MMC_CONTROL);
-    mmc_outl(reg & ~(1 << 1),IO_MMC_CONTROL);
-    reg = mmc_inl(IO_MMC_CONTROL);
+    reg = inl(IO_MMC_CONTROL);
+    outl(reg & ~(1),IO_MMC_CONTROL);
+    reg = inl(IO_MMC_CONTROL);
+    outl(reg & ~(1 << 1),IO_MMC_CONTROL);
+    reg = inl(IO_MMC_CONTROL);
 }
 
 /*
@@ -490,21 +490,21 @@ static void mmci_set_ios(char bus_width)
 	volatile u32 reg = 0;
 
 	/* bring the sd/mmc controller to idle state */
-	reg = mmc_inl (IO_MMC_CONTROL);
-	mmc_outl(reg | 0x03,IO_MMC_CONTROL);
+	reg = inl (IO_MMC_CONTROL);
+	outl(reg | 0x03,IO_MMC_CONTROL);
 	
 	if (bus_width == MMC_BUS_WIDTH_4){
 	    /*changing to 4-data line mode*/
-	    mmc_outl(reg | (1 << 2),IO_MMC_CONTROL); 
+	    outl(reg | (1 << 2),IO_MMC_CONTROL); 
 	}
 	else{
 	    /*changing to 4-data line mode*/
-	    mmc_outl(reg & (~(1 << 2)),IO_MMC_CONTROL);
+	    outl(reg & (~(1 << 2)),IO_MMC_CONTROL);
 	}
 
 	/* release idle state */
-	reg = mmc_inl(IO_MMC_CONTROL);
-	mmc_outl(reg & 0xFFFC,IO_MMC_CONTROL);
+	reg = inl(IO_MMC_CONTROL);
+	outl(reg & 0xFFFC,IO_MMC_CONTROL);
 }
 
 struct mmc_card *mmc_discover_cards(unsigned char mode)
@@ -696,11 +696,11 @@ int mmc_wait_for_req(struct mmc_request *mrq)
     int status0=4;
 
     mmc_start_request(mrq);
-    status0 = mmc_inl( IO_MMC_STATUS0);
+    status0 = inl( IO_MMC_STATUS0);
     mmc_debug_msg("status0=%x\n",status0);
     while((status0 & 4) == 0)
     {
-        status0 = mmc_inl( IO_MMC_STATUS0);
+        status0 = inl( IO_MMC_STATUS0);
         if(status0 & (MMC_INT_RSP_CRC_ERROR | MMC_INT_RSP_TIMEOUT))
         {
             mmc_cmd_err(mrq->cmd,status0);
@@ -731,18 +731,18 @@ void mmci_start_command(struct mmc_command *cmd,u32 c)
 	it_mmcsd_clear_response_reg(cmd);
         marg = cmd->arg; 
         cmd1 = cmd->opcode | cmd->flags | 0x0000;	
-        mmc_outl(marg,IO_MMC_ARG);
-        //marg=mmc_inl(IO_MMC_ARG);
-        mmc_outl(cmd1,IO_MMC_COMMAND);
+        outl(marg,IO_MMC_ARG);
+        //marg=inl(IO_MMC_ARG);
+        outl(cmd1,IO_MMC_COMMAND);
 }
 
 void it_mmcsd_clear_response_reg(struct mmc_command *cmd)
 {
-        mmc_outl(0,IO_MMC_RESPONSE01);
-        mmc_outl(0,IO_MMC_RESPONSE23);
-        mmc_outl(0,IO_MMC_RESPONSE45);
-        mmc_outl(0,IO_MMC_RESPONSE67);
-        mmc_outl(0,IO_MMC_COMMAND_INDEX);
+        outl(0,IO_MMC_RESPONSE01);
+        outl(0,IO_MMC_RESPONSE23);
+        outl(0,IO_MMC_RESPONSE45);
+        outl(0,IO_MMC_RESPONSE67);
+        outl(0,IO_MMC_COMMAND_INDEX);
         cmd->resp[0] = 0;
         cmd->resp[1] = 0;
         cmd->resp[2] = 0;
@@ -760,17 +760,17 @@ static void mmci_request(struct mmc_request *mrq)
 
 void it_mmcsd_get_status(struct mmc_command *cmd)
 {
-        cmd->status0 = mmc_inl(IO_MMC_STATUS0);
-        cmd->status1 = mmc_inl(IO_MMC_STATUS1);
-        cmd->resp[0] = mmc_inl(IO_MMC_RESPONSE01)&0xffff;
-        cmd->resp[1] = mmc_inl(IO_MMC_RESPONSE01)>>16;
-        cmd->resp[2] = mmc_inl(IO_MMC_RESPONSE23)&0xffff;
-        cmd->resp[3] = mmc_inl(IO_MMC_RESPONSE23)>>16;
-        cmd->resp[4] = mmc_inl(IO_MMC_RESPONSE45)&0xffff;
-        cmd->resp[5] = mmc_inl(IO_MMC_RESPONSE45)>>16;
-        cmd->resp[6] = mmc_inl(IO_MMC_RESPONSE67)&0xffff;
-        cmd->resp[7] = mmc_inl(IO_MMC_RESPONSE67)>>16;
-        cmd->cmd_index = mmc_inl (IO_MMC_COMMAND_INDEX);
+        cmd->status0 = inl(IO_MMC_STATUS0);
+        cmd->status1 = inl(IO_MMC_STATUS1);
+        cmd->resp[0] = inl(IO_MMC_RESPONSE01)&0xffff;
+        cmd->resp[1] = inl(IO_MMC_RESPONSE01)>>16;
+        cmd->resp[2] = inl(IO_MMC_RESPONSE23)&0xffff;
+        cmd->resp[3] = inl(IO_MMC_RESPONSE23)>>16;
+        cmd->resp[4] = inl(IO_MMC_RESPONSE45)&0xffff;
+        cmd->resp[5] = inl(IO_MMC_RESPONSE45)>>16;
+        cmd->resp[6] = inl(IO_MMC_RESPONSE67)&0xffff;
+        cmd->resp[7] = inl(IO_MMC_RESPONSE67)>>16;
+        cmd->cmd_index = inl (IO_MMC_COMMAND_INDEX);
 }
 
 void mmc_cmd_err(struct mmc_command*cmd,int status)
@@ -791,20 +791,20 @@ void change_clk25m(void)
 	mmc_debug_msg ("%s\n",__FUNCTION__);	
 
 	/*diable clock*/
-	reg = mmc_inl(IO_MMC_MEM_CLK_CONTROL);
-	mmc_outl(reg & 0xFEFF, IO_MMC_MEM_CLK_CONTROL);
-	reg = mmc_inl(IO_MMC_MEM_CLK_CONTROL);
+	reg = inl(IO_MMC_MEM_CLK_CONTROL);
+	outl(reg & 0xFEFF, IO_MMC_MEM_CLK_CONTROL);
+	reg = inl(IO_MMC_MEM_CLK_CONTROL);
 	
 	udelay(500);
 
 	/* set mmc clock to ~ 25 MHz */ 
-	mmc_outl(0x1,IO_MMC_MEM_CLK_CONTROL);
+	outl(0x1,IO_MMC_MEM_CLK_CONTROL);
         
 	udelay(500);
 
 	/* enable clock */
-	reg = mmc_inl(IO_MMC_MEM_CLK_CONTROL);
-	mmc_outl(reg | 0x0100, IO_MMC_MEM_CLK_CONTROL);
+	reg = inl(IO_MMC_MEM_CLK_CONTROL);
+	outl(reg | 0x0100, IO_MMC_MEM_CLK_CONTROL);
 }
 
 static int mmc_select_card(struct mmc_card *card)
@@ -879,8 +879,8 @@ unsigned long read_from_card(int dev,unsigned long start,lbaint_t blkcnt,unsigne
     mmc_debug_msg("dev=%d,start=%d,blkcnt=%d,buffer=%d\n",dev,start,(int)blkcnt,(int)buffer);
     /*disable clock */
 
-    reg = mmc_inl(IO_MMC_MEM_CLK_CONTROL);	
-    mmc_outl(reg & 0xFEFF, IO_MMC_MEM_CLK_CONTROL);
+    reg = inl(IO_MMC_MEM_CLK_CONTROL);	
+    outl(reg & 0xFEFF, IO_MMC_MEM_CLK_CONTROL);
 
     /*************WORKING******************/
     u32 remain = blkcnt<<mmc_sd_card->csd.read_blkbits;
@@ -889,8 +889,8 @@ unsigned long read_from_card(int dev,unsigned long start,lbaint_t blkcnt,unsigne
 
     it_mmcsd_clear_response_reg(&cmd);
 
-    mmc_outl(1<<mmc_sd_card->csd.read_blkbits,IO_MMC_BLOCK_LENGTH);
-    mmc_outl(blkcnt,IO_MMC_NR_BLOCKS);
+    outl(1<<mmc_sd_card->csd.read_blkbits,IO_MMC_BLOCK_LENGTH);
+    outl(blkcnt,IO_MMC_NR_BLOCKS);
 
     if(!mmc_card_blockrw(mmc_sd_card))
     {
@@ -914,8 +914,8 @@ unsigned long read_from_card(int dev,unsigned long start,lbaint_t blkcnt,unsigne
     else
         marg = start<<mmc_sd_card->csd.read_blkbits;
     cmd1 = MMC_READ_MULTIPLE_BLOCK | 0x0200 | 0x4000 | 0x2000 | 0x0080 | 0x8000;
-    mmc_outl(marg,IO_MMC_ARG);
-    mmc_outl(cmd1,IO_MMC_COMMAND);
+    outl(marg,IO_MMC_ARG);
+    outl(cmd1,IO_MMC_COMMAND);
 
     do{
         it_mmcsd_get_status(&cmd);
@@ -938,7 +938,7 @@ unsigned long read_from_card(int dev,unsigned long start,lbaint_t blkcnt,unsigne
 
         if (cmd.status0 & 0x400){
             for(i=0;i<4;i++) {
-                temp_data = mmc_inl (IO_MMC_RX_DATA);
+                temp_data = inl (IO_MMC_RX_DATA);
                 mmc_debug_msg_rw ("%x\t",temp_data);
                 mmc_debug_msg("data=%x\n",temp_data);
                 *buffer_short = (temp_data >> 24) & 0xFF;
@@ -969,7 +969,7 @@ unsigned long read_from_card(int dev,unsigned long start,lbaint_t blkcnt,unsigne
         it_mmcsd_get_status(&cmd);
         if (cmd.status0 & 0x400){
             for(i=0;i<4;i++) {
-                temp_data = mmc_inl (IO_MMC_RX_DATA);
+                temp_data = inl (IO_MMC_RX_DATA);
                 mmc_debug_msg("data=%x\n",temp_data);
                 *buffer_short = (temp_data >> 24) & 0xFF;
                 buffer_short = buffer_short + 1;
@@ -999,8 +999,8 @@ unsigned long read_from_card(int dev,unsigned long start,lbaint_t blkcnt,unsigne
 	
     marg = 0;
     cmd1 = MMC_STOP_TRANSMISSION | 0x0200 | 0x0100 | 0x0080;
-    mmc_outl(marg,IO_MMC_ARG);
-    mmc_outl(cmd1,IO_MMC_COMMAND);
+    outl(marg,IO_MMC_ARG);
+    outl(cmd1,IO_MMC_COMMAND);
 	
     do{
         it_mmcsd_get_status(&cmd);	
@@ -1015,8 +1015,8 @@ unsigned long read_from_card(int dev,unsigned long start,lbaint_t blkcnt,unsigne
     mmc_debug_msg("respone of the read command \n");
 
     /* enable clock */
-    reg = mmc_inl(IO_MMC_MEM_CLK_CONTROL);
-    mmc_outl(reg | 0x0100, IO_MMC_MEM_CLK_CONTROL);
+    reg = inl(IO_MMC_MEM_CLK_CONTROL);
+    outl(reg | 0x0100, IO_MMC_MEM_CLK_CONTROL);
 
     return (len>>mmc_sd_card->csd.read_blkbits);
 }
@@ -1035,26 +1035,14 @@ int get_card_type(void)
     return card_type;
 }
 
-int mmc_detect(void)
-{
-    /*
-       gio_set_dir(GIO_MMC_DETECT, 1);
-       if(!gio_get_bitset(GIO_MMC_DETECT))
-	   return 0;
-       
-       return -1;
-       */
-    return 0;
-}
-
 int do_mmc_sd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 { 
        int err;
-
-       if(mmc_detect())	   return -1; 
        
        host_configuration();
        mmc_sd_card = mmc_setup();
+       if (mmc_sd_card==NULL)
+           return -1;
        err = mmc_select_card(mmc_sd_card);
 
        if (err != MMC_ERR_NONE)   return -1;

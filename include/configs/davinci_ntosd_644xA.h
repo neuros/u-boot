@@ -181,4 +181,10 @@
 #define CONFIG_JFFS2_PART_SIZE   0x500000
 #define CONFIG_JFFS2_PART_OFFSET 0x1C0000
 
+/*=======================*/
+/*   YAFFS2  Support     */
+/*=======================*/
+#define CFG_NAND_YAFFS_WRITE
+#define CFG_NAND_YAFFS1_NEW_OOB_LAYOUT
+
 #endif /* __CONFIG_H */

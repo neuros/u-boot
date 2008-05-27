@@ -25,7 +25,7 @@
 /* Board */
 /*=======*/
 #define NTOSD_644XA
-#define CFG_NAND_SMALLPAGE
+#define CFG_NAND_LARGEPAGE
 #define CFG_USE_NAND
 /*===================*/
 /* SoC Configuration */
@@ -179,6 +179,6 @@
 #define CONFIG_JFFS2_NAND 1
 #define CONFIG_JFFS2_DEV "nand0"
 #define CONFIG_JFFS2_PART_SIZE   0x500000
-#define CONFIG_JFFS2_PART_OFFSET 0x118000
+#define CONFIG_JFFS2_PART_OFFSET 0x1C0000
 
 #endif /* __CONFIG_H */

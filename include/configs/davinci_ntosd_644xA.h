@@ -185,6 +185,6 @@
 /*   YAFFS2  Support     */
 /*=======================*/
 #define CFG_NAND_YAFFS_WRITE
-#define CFG_NAND_YAFFS1_NEW_OOB_LAYOUT
+#define CFG_NAND_YAFFS_NEW_OOB_LAYOUT
 
 #endif /* __CONFIG_H */

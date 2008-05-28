@@ -342,14 +342,14 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 				opts.length	= size;
 				opts.offset	= off;
 				/* opts.forcejffs2 = 1; */
+				opts.autoplace	= 1;
 				opts.pad	= 1;
 				opts.blockalign = 1;
 				opts.quiet      = quiet;
 				ret = nand_write_opts(nand, &opts);
 			}
 #ifdef CFG_NAND_YAFFS_WRITE
-		} else if (!read && s != NULL &&
-			   (!strcmp(s, ".yaffs") || !strcmp(s, ".yaffs1"))) {
+		} else if (!read && s != NULL && (!strcmp(s, ".yaffs"))) {
 			nand_write_options_t opts;
 			memset(&opts, 0, sizeof(opts));
 			opts.buffer	= (u_char*) addr;
@@ -360,8 +360,6 @@ int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 			opts.quiet      = quiet;
 			opts.writeoob   = 1;
 			opts.autoplace  = 1;
-			if (s[6] == '1')
-				opts.forceyaffs = 1;
 			ret = nand_write_opts(nand, &opts);
 #endif
 		} else if (s != NULL && !strcmp(s, ".oob")) {
@@ -484,8 +482,8 @@ U_BOOT_CMD(nand, 5, 1, do_nand,
 	"nand write[.jffs2]    - addr off|partition size - read/write `size' bytes starting\n"
 	"    at offset `off' to/from memory address `addr'\n"
 #ifdef CFG_NAND_YAFFS_WRITE
-	"nand write[.yaffs[1]] - addr off|partition size - write `size' byte yaffs image\n"
-	"    starting at offset `off' from memory address `addr' (.yaffs1 for 512+16 NAND)\n"
+	"nand write[.yaffs] - addr off|partition size - write `size' byte yaffs image\n"
+	"    starting at offset `off' from memory address `addr' \n"
 #endif
 	"nand erase [clean] [off size] - erase `size' bytes from\n"
 	"    offset `off' (entire device if not specified)\n"

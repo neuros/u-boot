@@ -485,10 +485,11 @@ static int actual_update(void)
     image_info_t     *iif  = &i_info;
     nand_info_t *nand;
     ulong offset, size;
+    uchar a[NAND_PAGE_SIZE];
     u_boot_desc_t desc = {
         0xA1ACED66,
         0x81080000,
-        0x00000600,
+        0x00000180,
         0x00000006,
         0x00000001,
         0x81080000
@@ -513,7 +514,7 @@ static int actual_update(void)
             if (run_nand_cmd("erase", offset, size, NULL))
             {
                 printf("nand erase failed\n");
-                run_command("reset", 0);
+                //run_command("reset", 0);
                 return(-1);
             }
             size = iif->i_imagesize-1;
@@ -521,7 +522,7 @@ static int actual_update(void)
             if (rc != 0 )
             {
                 printf("nand write failed\n");
-                run_command("reset", 0);
+                //run_command("reset", 0);
                 return(-1);
             }
             percent_num += rootfs_per;
@@ -536,7 +537,7 @@ static int actual_update(void)
             if (run_nand_cmd("erase", offset, size, NULL))
             {
                 printf("nand erase failed\n");
-                run_command("reset", 0);
+                //run_command("reset", 0);
                 return(-1);
             }
             size = size - (size>>4); //must reserve some redundance for bad block
@@ -545,7 +546,7 @@ static int actual_update(void)
             if (rc != 0 )
             {
                 printf("nand write failed\n");
-                run_command("reset", 0);
+                //run_command("reset", 0);
                 return(-1);
             }
             percent_num += kernel_per;
@@ -560,17 +561,18 @@ static int actual_update(void)
             if (run_nand_cmd("erase", offset, size, NULL))
             {
                 printf("nand erase failed\n");
-                run_command("reset", 0);
+                //run_command("reset", 0);
                 return(-1);
             }
             for(j=0; j<6; j++) 
             {
+                memcpy(a, &desc, sizeof(desc));
                 offset = iif->i_startaddr_f + j * NAND_BLOCK_SIZE;
                 size = NAND_PAGE_SIZE;
-                rc = nand_write(nand, offset, &size, (uchar *)(&desc));
+                rc = nand_write(nand, offset, &size, (uchar *)(a));
                 if (rc != 0 )
                 {
-                    printf("write u-boot-desc failed at 0x%x\n", offset);
+                    printf("write u-boot-desc failed at 0x%x, size 0x%x\n", offset, size);
                     desc.start_block++;
                 }
                 else 
@@ -580,7 +582,7 @@ static int actual_update(void)
             }
             if(j == 6) 
             {
-                run_command("reset", 0);
+                //run_command("reset", 0);
                 return -1;
             }
             offset = offset + NAND_PAGE_SIZE;
@@ -591,7 +593,7 @@ static int actual_update(void)
             if (rc != 0 )
             {
                 printf("nand write failed\n");
-                run_command("reset", 0);
+                //run_command("reset", 0);
                 return(-1);
             }
             percent_num += uboot_per;
@@ -655,15 +657,26 @@ void update_percent(void)
 /** upgrade process  */
 int chk_upgrade_flag(void)
 {
-    printf("CFG_PACKAGE_ADDR = %x\n",CFG_PACKAGE_ADDR);
-#if defined(CONFIG_CMD_MMCSD) || defined(CONFIG_CMD_MS)
-    if (copy_package_to_ram() != 0) return(0);
-    setenv("upgrade_type", "emergency");
-    if (do_update() == 0)
+    ushort *flag;
+
+    flag = (ushort *)(CFG_FLAG_ADDR);
+    if(*flag == 0x5A5A)  /* normal start  */
     {
-        run_command("reset", 0);
-    }
+        *flag = 0;
+        return(0);  
+    }  
+    else 
+    {
+#if defined(CONFIG_CMD_MMCSD) || defined(CONFIG_CMD_MS)
+        if (copy_package_to_ram() != 0) return(0);
+        setenv("upgrade_type", "emergency");
+        if (do_update() == 0)
+        {
+            *flag = 0x5A5A;
+            run_command("reset", 0);
+        }
 #endif
+    }
     return(0);
 }
 

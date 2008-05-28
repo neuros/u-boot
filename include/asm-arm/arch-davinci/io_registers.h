@@ -1,4 +1,20 @@
-
+/*
+ * Copyright (C) 2006 - 2008 Neuros Technology LLC.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; only support version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ */
 #ifndef __ASM_ARCH_IO_REGISTERS1_H__
 #define __ASM_ARCH_IO_REGISTERS1_H__
 
@@ -26,5 +42,14 @@
 #define IO_MMC_RESPONSE67         0x01E10044
 #define IO_MMC_SPI_DATA           0x01E10048
 #define IO_MMC_COMMAND_INDEX      0x01E1004C
+
+/* timer */
+#define IO_TIMER2_TIM12     0x01C21C10
+#define IO_TIMER2_TIM34     0x01C21C14
+#define IO_TIMER2_PRD12     0x01C21C18
+#define IO_TIMER2_PRD34     0x01C21C1C
+#define IO_TIMER2_TCR         0x01C21C20 
+#define IO_TIMER2_TGCR       0x01C21C24
+#define IO_TIMER2_WDTCR     0x01C21C28
 
 #endif

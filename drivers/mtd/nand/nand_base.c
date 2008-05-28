@@ -88,6 +88,11 @@
 #include <jffs2/jffs2.h>
 #endif
 
+#ifdef NTOSD_644XA
+#define DM6446_NAND_ECC_SIZE	512
+#define DM6446_NAND_ECC_BYTES	4
+#endif
+
 /* Define default oob placement schemes for large and small page devices */
 static struct nand_oobinfo nand_oob_8 = {
 	.useecc = MTD_NANDECC_AUTOPLACE,
@@ -895,7 +900,7 @@ static int nand_write_page (struct mtd_info *mtd, struct nand_chip *this, int pa
 	int	eccmode = oobsel->useecc ? this->eccmode : NAND_ECC_NONE;
 	uint  	*oob_config = oobsel->eccpos;
 	int	datidx = 0, eccidx = 0, eccsteps = this->eccsteps;
-	int	eccbytes = 0;
+	int	eccbytes = 0, eccsize = this->eccsize;
 
 	/* FIXME: Enable cached programming */
 	cached = 0;
@@ -922,11 +927,18 @@ static int nand_write_page (struct mtd_info *mtd, struct nand_chip *this, int pa
 		this->write_buf(mtd, this->data_poi, mtd->oobblock);
 		break;
 	default:
+#ifdef NTOSD_644XA
+		/* every 512 Bytes generate 4 Bytes ecc */
+		eccsize  = DM6446_NAND_ECC_SIZE;
+		eccbytes = DM6446_NAND_ECC_BYTES;
+		eccsteps = this->eccsize / eccsize;
+#else
 		eccbytes = this->eccbytes;
+#endif
 		for (; eccsteps; eccsteps--) {
 			/* enable hardware ecc logic for write */
 			this->enable_hwecc(mtd, NAND_ECC_WRITE);
-			this->write_buf(mtd, &this->data_poi[datidx], this->eccsize);
+			this->write_buf(mtd, &this->data_poi[datidx], eccsize);
 			this->calculate_ecc(mtd, &this->data_poi[datidx], ecc_code);
 			for (i = 0; i < eccbytes; i++, eccidx++)
 				oob_buf[oob_config[eccidx]] = ecc_code[i];
@@ -935,7 +947,7 @@ static int nand_write_page (struct mtd_info *mtd, struct nand_chip *this, int pa
 			 * the data bytes (words) */
 			if (this->options & NAND_HWECC_SYNDROME)
 				this->write_buf(mtd, ecc_code, eccbytes);
-			datidx += this->eccsize;
+			datidx += eccsize;
 		}
 		break;
 	}
@@ -1229,6 +1241,12 @@ static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 			break;
 
 		default:
+#ifdef NTOSD_644XA
+			/* every 512 bytes generate 4 bytes ecc*/
+			ecc = DM6446_NAND_ECC_SIZE;
+			eccbytes = DM6446_NAND_ECC_BYTES;
+			eccsteps = this->eccsize / ecc;
+#endif
 			for (i = 0, datidx = 0; eccsteps; eccsteps--, i+=eccbytes, datidx += ecc) {
 				this->enable_hwecc(mtd, NAND_ECC_READ);
 				this->read_buf(mtd, &data_poi[datidx], ecc);
@@ -1267,7 +1285,7 @@ static int nand_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 			ecc_code[j] = oob_data[oob_config[j]];
 
 		/* correct data, if neccecary */
-		for (i = 0, j = 0, datidx = 0; i < this->eccsteps; i++, datidx += ecc) {
+		for (i = 0, j = 0, datidx = 0; i < eccsteps; i++, datidx += ecc) {
 			ecc_status = this->correct_data(mtd, &data_poi[datidx], &ecc_code[j], &ecc_calc[j]);
 
 			/* Get next chunk of ecc bytes */

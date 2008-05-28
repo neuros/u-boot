@@ -168,20 +168,16 @@ static u_int32_t nand_davinci_readecc(struct mtd_info *mtd, u_int32_t region)
 static int nand_davinci_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
 {
 	u_int32_t		tmp;
-	int			region, n;
-	struct nand_chip	*this = mtd->priv;
-
-	n = (this->eccmode == NAND_ECC_HW16_2048) ? 4 : 1;
+	int			region;
 
 	region = 1;
-	while (n--) {
-		tmp = nand_davinci_readecc(mtd, region);
-		*ecc_code++ = tmp >> 24;
-		*ecc_code++ = tmp >> 16;
-		*ecc_code++ = tmp >> 8;
-		*ecc_code++ = tmp;
-		region++;
-	}
+	tmp = nand_davinci_readecc(mtd, region);
+	if(tmp == 0) tmp = ~tmp;
+	*ecc_code++ = tmp >> 24;
+	*ecc_code++ = tmp >> 16;
+	*ecc_code++ = tmp >> 8;
+	*ecc_code++ = tmp;
+
 	return(0);
 }
 

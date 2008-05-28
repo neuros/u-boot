@@ -161,6 +161,15 @@ int board_init(void)
 	return(0);
 }
 
+#ifdef BOARD_LATE_INIT
+int board_late_init(void)
+{
+#ifdef CONFIG_UPGRADE_IMAGE
+    chk_upgrade_flag();
+#endif
+}
+#endif
+
 int misc_init_r (void)
 {
 	u_int8_t	tmp[20], buf[10];

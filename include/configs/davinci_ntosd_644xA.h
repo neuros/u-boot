@@ -108,6 +108,7 @@
 /*==============================*/
 /* U-Boot general configuration */
 /*==============================*/
+#define BOARD_LATE_INIT
 #define CONFIG_MMC 
 #define CONFIG_DOS_PARTITION
 #undef 	CONFIG_USE_IRQ			/* No IRQ/FIQ in U-Boot */
@@ -186,5 +187,18 @@
 /*=======================*/
 #define CFG_NAND_YAFFS_WRITE
 #define CFG_NAND_YAFFS_NEW_OOB_LAYOUT
+
+/*=======================*/
+/*  UPGRADE IMAGE  Support      */
+/*=======================*/
+#define CONFIG_UPGRADE_IMAGE
+#if defined(CONFIG_UPGRADE_IMAGE)
+#define SAFE_SIZE (224*1024*1024)
+#define CFG_PACKAGE_ADDR  (PHYS_SDRAM_1 + (32*1024*1024))
+#define CFG_FLAG_ADDR     (CFG_PACKAGE_ADDR - 4)
+#define NAND_PAGE_SIZE 2048
+#define NAND_BLOCK_SIZE (128*1024)
+#endif
+
 
 #endif /* __CONFIG_H */

@@ -38,7 +38,7 @@
 /*=============*/
 /* Memory Info */
 /*=============*/
-#define CFG_MALLOC_LEN		(0x10000 + 128*1024)	/* malloc() len */
+#define CFG_MALLOC_LEN		(0x10000 + 512*1024)	/* malloc() len */
 #define CFG_GBL_DATA_SIZE	128		/* reserved for initial data */
 #define CFG_MEMTEST_START	0x80000000	/* memtest start address */
 #define CFG_MEMTEST_END		0x81000000	/* 16MB RAM test */

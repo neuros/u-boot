@@ -118,7 +118,7 @@ typedef struct version_struct
     uint8_t  app_ver[VERLEN];
 }pack_info;
 
-static char package_name[] = "/newpackage/r3.upk";
+static char package_name[] = "/newpackage/osd20.pkg";
 static ulong loader_addr;
 
 static ulong package_len;
@@ -504,7 +504,7 @@ static int actual_update(void)
         memmove (iif, (char *)(loader_addr + sizeof(package_header_t)+ i*sizeof(image_info_t)), sizeof(image_info_t));
 
         temp_ihdr = loader_addr + iif->i_startaddr_p;
-        printf("image size : %x\n", iif->i_imagesize);
+        printf("image size : %x, addr : 0x%x\n", iif->i_imagesize,temp_ihdr);
 
         if (iif->i_type == IH_TYPE_ROOTFS)
         {
@@ -518,7 +518,7 @@ static int actual_update(void)
                 return(-1);
             }
             size = iif->i_imagesize-1;
-            rc = run_nand_cmd("write.yaffs1", offset, size, (uchar *)temp_ihdr);
+            rc = run_nand_cmd("write.yaffs", offset, size, (uchar *)temp_ihdr);
             if (rc != 0 )
             {
                 printf("nand write failed\n");
@@ -603,7 +603,6 @@ static int actual_update(void)
         else if (iif->i_type == IH_TYPE_SCRIPT)
         {
             if (autoscript(temp_ihdr) != 0) return(-1);
-            setenv("bootcmd", "run nand_boot");
             saveenv();
             percent_num += script_per;
             //show_percent(percent_num);

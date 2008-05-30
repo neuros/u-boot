@@ -49,6 +49,7 @@ typedef struct mtd_info	  mtd_info_t;
 #define cpu_to_je16(x) (x)
 #define cpu_to_je32(x) (x)
 
+#ifdef CFG_NAND_YAFFS_WRITE
 /*------yaffs---------*/
 typedef struct {
     unsigned chunkId:20;
@@ -61,6 +62,29 @@ typedef struct {
     unsigned shouldBeFF;
 
 } yaffs_PackedTags1;
+
+/*------yaffs2----------*/
+/* copy from yaffs_ecc.h */
+typedef struct {
+	unsigned char colParity;
+	unsigned lineParity;
+	unsigned lineParityPrime;
+} yaffs_ECCOther;
+
+/* copy from yaffs_packedtags2.h */
+typedef struct {
+	unsigned sequenceNumber;
+	unsigned objectId;
+	unsigned chunkId;
+	unsigned byteCount;
+} yaffs_PackedTags2TagsPart;
+
+typedef struct {
+	yaffs_PackedTags2TagsPart t;
+	yaffs_ECCOther ecc;
+} yaffs_PackedTags2;
+
+#endif
 
 /*****************************************************************************/
 static int nand_block_bad_scrub(struct mtd_info *mtd, loff_t ofs, int getchip)
@@ -315,9 +339,9 @@ int nand_write_opts(nand_info_t *meminfo, const nand_write_options_t *opts)
 	u_char *buffer = opts->buffer;
 	size_t written;
 	int result;
-
+#ifdef CFG_NAND_YAFFS_WRITE
 	yaffs_PackedTags1 pt1;
-
+#endif
 	if (opts->pad && opts->writeoob) {
 		printf("Can't pad when oob data is present.\n");
 		return -1;
@@ -361,10 +385,6 @@ int nand_write_opts(nand_info_t *meminfo, const nand_write_options_t *opts)
 	if (opts->forcejffs2 || opts->forceyaffs) {
 		struct nand_oobinfo *oobsel =
 			opts->forcejffs2 ? &jffs2_oobinfo : &yaffs_oobinfo;
-#ifdef CFG_NAND_YAFFS1_NEW_OOB_LAYOUT
-		/* jffs2_oobinfo matches 2.6.18+ MTD nand_oob_16 ecclayout */
-		oobsel = &jffs2_oobinfo;
-#endif
 		if (meminfo->oobsize == 8) {
 			if (opts->forceyaffs) {
 				printf("YAFSS cannot operate on "
@@ -465,8 +485,9 @@ int nand_write_opts(nand_info_t *meminfo, const nand_write_options_t *opts)
 			memcpy(oob_buf, buffer, meminfo->oobsize);
 			buffer += meminfo->oobsize;
 
-			if (opts->forceyaffs) {
-#ifdef CFG_NAND_YAFFS1_NEW_OOB_LAYOUT
+#ifdef CFG_NAND_YAFFS_WRITE
+#ifdef CFG_NAND_YAFFS_NEW_OOB_LAYOUT
+			if (meminfo->oobsize == 16) {
 				/* translate OOB for yaffs1 on Linux 2.6.18+ */
 				oob_buf[15] = oob_buf[12];
 				oob_buf[14] = oob_buf[11];
@@ -486,6 +507,23 @@ int nand_write_opts(nand_info_t *meminfo, const nand_write_options_t *opts)
 				memcpy(&pt1,oob_buf+8,8);
 				pt1.serialNumber = 0;
 				memcpy(oob_buf+8,&pt1,8);
+			} else if (meminfo->oobsize == 64) {
+				static unsigned char temp_buf[MAX_OOB_SIZE];
+				int i, j;
+
+				memcpy(temp_buf, oob_buf, meminfo->oobsize);
+				memset(oob_buf, 0xff, meminfo->oobsize);
+				for(i = 0, j=0; j < sizeof(yaffs_PackedTags2); i++)
+				{
+					int to  = meminfo->oobinfo.oobfree[i][0];
+					int num = meminfo->oobinfo.oobfree[i][1];
+					memcpy(&oob_buf[to], &temp_buf[j], num);
+					j += num;
+				}
+			} else {
+				printf("\nunknown nand flash, oob size isn't match\n");
+				goto restoreoob;
+			}
 #else
 				/* set the ECC bytes to 0xff so MTD will
 				   calculate it */
@@ -493,7 +531,7 @@ int nand_write_opts(nand_info_t *meminfo, const nand_write_options_t *opts)
 				for (i = 0; i < meminfo->oobinfo.eccbytes; i++)
 					oob_buf[meminfo->oobinfo.eccpos[i]] = 0xff;
 #endif
-			}
+#endif
 			/* write OOB data first, as ecc will be placed
 			 * in there*/
 			result = meminfo->write_oob(meminfo,

@@ -1,10 +1,9 @@
 /*
- * Copyright (C) 2006 Neuros Technology LLC.
+ * Copyright (C) 2006 - 2008 Neuros Technology LLC.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * the Free Software Foundation; only support version 2 of the License.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -37,6 +36,7 @@
 #define MMC_MODE_SD 2
 #define MMC_MODE_MMC 1
 #define CMD_RETRIES 3
+#define HOST_BIGENDIAN 0
 
 static const unsigned int tran_exp[] = {
 	10000,		100000,		1000000,	10000000,
@@ -121,7 +121,11 @@ static void host_configuration(void)
 
     init_clocks();
 
+#if HOST_BIGENDIAN
     outl(0x0200 | 0x0400 | 0x3, IO_MMC_CONTROL);
+#else
+    outl(0x3, IO_MMC_CONTROL);
+#endif
 
     /*Data timeout register*/
     /*
@@ -941,6 +945,7 @@ unsigned long read_from_card(int dev,unsigned long start,lbaint_t blkcnt,unsigne
                 temp_data = inl (IO_MMC_RX_DATA);
                 mmc_debug_msg_rw ("%x\t",temp_data);
                 mmc_debug_msg("data=%x\n",temp_data);
+#if HOST_BIGENDIAN
                 *buffer_short = (temp_data >> 24) & 0xFF;
                 buffer_short = buffer_short + 1;
                 *buffer_short = (temp_data >> 16) & 0xFF;
@@ -949,6 +954,10 @@ unsigned long read_from_card(int dev,unsigned long start,lbaint_t blkcnt,unsigne
                 buffer_short = buffer_short + 1;
                 *buffer_short = temp_data & 0xFF;
                 buffer_short = buffer_short + 1;
+#else
+                *((u32*)buffer_short) = temp_data;
+                buffer_short += 4;
+#endif
             }
             remain-=16;
             mmc_debug_msg ("remain=%d,STATUS0 :%x\tSTATUS1 :%x\n",remain,cmd.status0,cmd.status1);
@@ -971,6 +980,7 @@ unsigned long read_from_card(int dev,unsigned long start,lbaint_t blkcnt,unsigne
             for(i=0;i<4;i++) {
                 temp_data = inl (IO_MMC_RX_DATA);
                 mmc_debug_msg("data=%x\n",temp_data);
+#if HOST_BIGENDIAN
                 *buffer_short = (temp_data >> 24) & 0xFF;
                 buffer_short = buffer_short + 1;
                 *buffer_short = (temp_data >> 16) & 0xFF;
@@ -979,6 +989,10 @@ unsigned long read_from_card(int dev,unsigned long start,lbaint_t blkcnt,unsigne
                 buffer_short = buffer_short + 1;
                 *buffer_short = temp_data & 0xFF;
                 buffer_short = buffer_short + 1;
+#else
+                *((u32*)buffer_short) = temp_data;
+                buffer_short += 4;
+#endif
             }
             remain-=16;
             mmc_debug_msg ("remain=%d,STATUS0 :%x\tSTATUS1 :%x\n",remain,cmd.status0,cmd.status1);

@@ -28,6 +28,7 @@
 #include <i2c.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/emac_defs.h>
+#include <linux/ctype.h>
 
 #define MACH_TYPE_NTOSD_644XA	1647
 
@@ -165,8 +166,10 @@ int board_init(void)
 int board_late_init(void)
 {
 #ifdef CONFIG_UPGRADE_IMAGE
+    int chk_upgrade_flag(void);
     chk_upgrade_flag();
 #endif
+    return 0;
 }
 #endif
 
@@ -219,3 +222,153 @@ int dram_init(void)
 
 	return(0);
 }
+
+/***********************************************************/
+#ifdef NTOSD_644XA
+static int  macchecksum(const char * mac)
+{
+	int i;
+	unsigned short sum = 0, tempsum = 0, value;
+
+	for (i = 0; i < 17; i++)
+	{
+		sum = (sum & 0x8000) ? (sum << 1) + 1 : sum << 1;
+		sum += toupper(mac[i]) + ((toupper(mac[i])) << 8);
+	}
+
+	for(i = 0; i < 4; i++)
+	{
+		value = isdigit(mac[18 + i]) ? (mac[18 + i] - '0') : (toupper(mac[18 + i]) - 'A' + 10);
+		tempsum = (tempsum << 4) + value;
+	}
+
+	if(sum == tempsum) return (0);
+	else return (-1);
+}
+
+static int snchecksum(const char *sn)
+{
+	int i;
+	unsigned char sum = 0, tempsum = 0, value;
+
+	for (i = 0; i < 10; i++)
+	{
+		sum = (sum & 0x80) ? (sum << 1)+1 : sum << 1;
+		sum += toupper(sn[i]);
+	}
+
+	for(i = 0; i < 2; i++)
+	{
+		value = isdigit(sn[10 + i]) ? (sn[10 + i] - '0') : (toupper(sn[10 + i]) - 'A' + 10);
+		tempsum = (tempsum << 4) + value;
+	}
+
+	if(sum == tempsum) return (0);
+	else return (-1);
+}
+
+typedef struct
+{
+	ushort bytes;
+	uchar  reg;
+	uchar  data[0x10];
+} rrb_data_t;
+
+int read_mac_sn(char *buf, ushort len)
+{
+	int i;
+	uchar num;
+	ushort addr = 0x10C0;
+	rrb_data_t dat;
+	uchar i2c_addr = 0x59;
+
+	while(1)
+	{
+		if (len >= 0x10) num = 0x10;
+		else num = len;
+
+		dat.bytes = 2;
+		dat.reg =  2;
+		dat.data[0] = addr & 0xff;
+		dat.data[1] = (addr >> 8) & 0xff;
+		for(i = 0; i < dat.bytes; i++)
+		{
+			if(i2c_write(i2c_addr, dat.reg + i, 1, &dat.data[i], 1))
+			{
+				printf("error sending address\n");
+				goto out;
+			}
+		}
+
+		dat.bytes = 1;
+		dat.reg =  1;
+		dat.data[0] = num;
+		for(i = 0; i < dat.bytes; i++)
+		{
+			if(i2c_write(i2c_addr, dat.reg + i, 1, &dat.data[i], 1))
+			{
+
+				printf("Error sending byte count\n");
+				goto out;
+			}
+		}
+
+		dat.bytes = 1;
+		dat.reg = 0;
+		dat.data[0] = 0x0C;
+		for(i = 0; i < dat.bytes; i++)
+		{
+			if(i2c_write(i2c_addr, dat.reg + i, 1, &dat.data[i], 1))
+			{
+				printf("Error sending command\n");
+				goto out;
+			}
+		}
+
+		dat.bytes = num;
+		dat.reg =  6;
+		for(i = 0; i < dat.bytes; i++)
+		{
+			i2c_read(i2c_addr, dat.reg + i, 1, &dat.data[i], 1);
+		}
+		memcpy(buf, &dat.data[0], num);
+		buf += num;
+		addr += num;
+
+		len -= num;
+		if (!len) return 0;
+	}
+out:
+	return -1;
+}
+
+/*
+ * get mac and sn from msp, set to env
+ */
+int getmac_from_msp(void)
+{
+	uchar buf[40], temp[18];
+	extern void setenv(char *varname, char *varvalue);
+
+	if(read_mac_sn(buf, 34))
+		return (-1);
+	if(macchecksum(buf) != 0)
+	{
+		printf("no valid mac in msp430, use default\n");
+		return (-1);
+	}
+	memcpy(temp, buf, 17);
+	temp[17] = '\0';
+	setenv("ethaddr", temp);
+	if(snchecksum(buf + 22) != 0)
+	{
+		printf("no valid sn in msp430\n");
+	}
+	memcpy(temp, buf + 22, 12);
+	temp[12] = '\0';
+	setenv("sn", temp);
+
+	return (0);
+}
+#endif
+/***********************************************************/

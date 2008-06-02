@@ -362,7 +362,9 @@ void start_armboot (void)
 #ifdef CONFIG_SERIAL_MULTI
 	serial_initialize();
 #endif
-
+#ifdef NTOSD_644XA
+	getmac_from_msp();
+#endif
 	/* IP Address */
 	gd->bd->bi_ip_addr = getenv_IPaddr ("ipaddr");
 

@@ -89,6 +89,7 @@
 #define CFG_ENV_SECT_SIZE       2048
 #define CFG_ENV_SIZE            SZ_128K
 #endif
+#define CONFIG_ENV_OVERWRITE
 #define CONFIG_SKIP_LOWLEVEL_INIT	/* U-Boot is loaded by a bootloader */
 #define CONFIG_SKIP_RELOCATE_UBOOT	/* to a proper address, init done */
 #define CFG_NAND_BASE		0x02000000

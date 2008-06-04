@@ -78,7 +78,7 @@ int timer_init(void)
 	timer->tgcr = 0x0;
 	timer->tgcr = 0x06;
 	timer->tim34 = 0x0;
-	timer->prd34 = TIMER_LOAD_VAL;
+	timer->prd34 = DIV(TIMER_LOAD_VAL);
 	lastinc = 0;
 	timer->tcr = 0x80 << 16;
 	timestamp = 0;

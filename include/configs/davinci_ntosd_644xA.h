@@ -121,7 +121,7 @@
 #define CFG_PBSIZE		(CFG_CBSIZE+sizeof(CFG_PROMPT)+16)	/* Print buffer sz */
 #define CFG_MAXARGS		16		/* max number of command args */
 #define CFG_BARGSIZE		CFG_CBSIZE	/* Boot Argument Buffer Size */
-#define CFG_LOAD_ADDR		0x80700000	/* default Linux kernel load address */
+#define CFG_LOAD_ADDR		0x82000000	/* default Linux kernel load address */
 #define CONFIG_LOADADDR		CFG_LOAD_ADDR
 #define CONFIG_VERSION_VARIABLE
 #define CONFIG_AUTO_COMPLETE		/* Won't work with hush so far, may be later */

@@ -278,7 +278,7 @@ int read_mac_sn(char *buf, ushort len)
 {
 	int i;
 	uchar num;
-	ushort addr = 0x10C0;
+	ushort addr = 0xE000;
 	rrb_data_t dat;
 	uchar i2c_addr = 0x59;
 

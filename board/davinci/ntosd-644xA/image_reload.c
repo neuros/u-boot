@@ -385,7 +385,7 @@ static int check_image(void)
     {
         memmove(iif, (uchar *)(loader_addr + sizeof(package_header_t))+ i*sizeof(image_info_t), sizeof(image_info_t));
 
-        if ( (iif->i_type != IH_TYPE_SCRIPT) && (iif->i_imagesize > (iif->i_endaddr_f - iif->i_startaddr_f + 1)) )
+        if ( (iif->i_type != IH_TYPE_SCRIPT) && ((iif->i_imagesize-1) > (iif->i_endaddr_f - iif->i_startaddr_f + 1)) )
         {
             //textout(msg4_pos1.x, msg4_pos1.y, "Sorry,\n", COLOR_YELLOW, COLOR_BLACK);
             //textout(msg4_pos2.x, msg4_pos2.y, "Package too big!\n", COLOR_YELLOW, COLOR_BLACK);

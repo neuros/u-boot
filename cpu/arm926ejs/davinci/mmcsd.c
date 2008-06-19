@@ -37,6 +37,7 @@
 #define MMC_MODE_MMC 1
 #define CMD_RETRIES 3
 #define HOST_BIGENDIAN 0
+#define MAX_READ_CNT 0xffff
 
 static const unsigned int tran_exp[] = {
 	10000,		100000,		1000000,	10000000,
@@ -870,6 +871,7 @@ static int mmc_select_card(struct mmc_card *card)
 	return MMC_ERR_NONE;
 }
 
+/* the max block count read_from_card can read is 0xffff for the mmc block count register is 16 bits len*/
 unsigned long read_from_card(int dev,unsigned long start,lbaint_t blkcnt,unsigned long *buffer)
 {
     u32 marg;
@@ -1035,6 +1037,30 @@ unsigned long read_from_card(int dev,unsigned long start,lbaint_t blkcnt,unsigne
     return (len>>mmc_sd_card->csd.read_blkbits);
 }
 
+unsigned long block_read(int dev, unsigned long start, lbaint_t blkcnt, unsigned long *buffer)
+{
+    unsigned char *read_buffer = buffer;
+    u32 read_start = start;
+    u32 blk_cnt = blkcnt;
+    u32 read_cnt;
+    u32 ret;
+    while(blk_cnt)
+    {
+        if(blk_cnt < MAX_READ_CNT)
+            read_cnt = blk_cnt;
+        else
+            read_cnt = MAX_READ_CNT;
+        ret = read_from_card(dev, read_start, read_cnt, read_buffer);
+        if(ret == 0)
+        {
+            return 0; //error
+        }
+        blk_cnt -= ret;
+        read_start += ret;
+        read_buffer += ret << mmc_sd_card->csd.read_blkbits;
+    }
+    return blkcnt;
+}
 
 block_dev_desc_t *mmc_get_dev(int dev) 
 { 
@@ -1067,7 +1093,7 @@ int do_mmc_sd(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	   mmcsd_dev.part_type=PART_TYPE_DOS;  	/* partition type */
 	   mmcsd_dev.type=DEV_TYPE_UNKNOWN;
 	   mmcsd_dev.removable=1;	/* removable device */
-	   mmcsd_dev.block_read=read_from_card;
+	   mmcsd_dev.block_read=block_read;
 	   mmcsd_dev.lba=mmc_sd_card->csd.capacity;
 	   mmcsd_dev.blksz=1<<mmc_sd_card->csd.read_blkbits;
 	   printf("card capacity: %dKB\n",(mmc_sd_card->csd.capacity << mmc_sd_card->csd.read_blkbits) / 1024);

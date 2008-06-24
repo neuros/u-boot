@@ -208,6 +208,8 @@ int misc_init_r (void)
 		printf("ETH PHY   : %s\n", phy.name);
 	}
 
+	sil9034_hdmi_init() ;
+
 	i2c_read (0x39, 0x00, 1, (u_int8_t *)&i, 1);
 
 	setenv ("videostd", ((i  & 0x80) ? "pal" : "ntsc"));

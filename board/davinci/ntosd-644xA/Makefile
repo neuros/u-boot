@@ -27,7 +27,7 @@ include $(TOPDIR)/config.mk
 
 LIB	= $(obj)lib$(BOARD).a
 
-COBJS	:= dv_board.o image_reload.o
+COBJS	:= dv_board.o image_reload.o davincifb.o psc.o ths8200.o
 SOBJS	:= board_init.o
 
 SRCS	:= $(SOBJS:.o=.S) $(COBJS:.o=.c)

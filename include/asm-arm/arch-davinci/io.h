@@ -1,21 +1,71 @@
 /*
- * Copyright (C) 2006 - 2008 Neuros Technology LLC.
+ * DaVinci IO address definitions
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; only support version 2 of the License.
+ * Copied from include/asm/arm/arch-omap/io.h
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
+ * 2007 (c) MontaVista Software, Inc. This file is licensed under
+ * the terms of the GNU General Public License version 2. This program
+ * is licensed "as is" without any warranty of any kind, whether express
+ * or implied.
  */
-#ifndef __ASM_ARM_ARCH-DAVINCI_IO_H
-#define __ASM_ARM_ARCH-DAVINCI_IO_H
-#define __io(p) (p)
-#endif	/* __ASM_ARM_ARCH-DAVINCI_IO_H */
+#ifndef __ASM_ARCH_IO_H
+#define __ASM_ARCH_IO_H
+
+#define IO_SPACE_LIMIT 0xffffffff
+
+/*
+ * ----------------------------------------------------------------------------
+ * I/O mapping
+ * ----------------------------------------------------------------------------
+ */
+#define IO_PHYS		0x01c00000
+#define IO_OFFSET	0xfd000000 /* Virtual IO = 0xfec00000 */
+#define IO_SIZE		0x00400000
+#define IO_VIRT		(IO_PHYS + IO_OFFSET)
+#define io_p2v(pa)	((pa) + IO_OFFSET)
+#define io_v2p(va)	((va) - IO_OFFSET)
+#define IO_ADDRESS(x)	(x)
+#define __io(a)		(a)
+
+#ifndef __ASSEMBLER__
+
+/*
+ * Functions to access the DaVinci IO region
+ *
+ * NOTE: - Use davinci_read/write[bwl] for physical register addresses
+ *	 - Use __raw_read/write[bwl]() for virtual register addresses
+ *	 - Use IO_ADDRESS(phys_addr) to convert registers to virtual addresses
+ *	 - DO NOT use hardcoded virtual addresses to allow changing the
+ *	   IO address space again if needed
+ */
+#define davinci_readb(a)	(*(volatile unsigned char  *)IO_ADDRESS(a))
+#define davinci_readw(a)	(*(volatile unsigned short *)IO_ADDRESS(a))
+#define davinci_readl(a)	(*(volatile unsigned int   *)IO_ADDRESS(a))
+
+#define davinci_writeb(v,a)	(*(volatile unsigned char  *)IO_ADDRESS(a) = (v))
+#define davinci_writew(v,a)	(*(volatile unsigned short *)IO_ADDRESS(a) = (v))
+#define davinci_writel(v,a)	(*(volatile unsigned int   *)IO_ADDRESS(a) = (v))
+
+/* 16 bit uses LDRH/STRH, base +/- offset_8 */
+typedef struct { volatile u16 offset[256]; } __regbase16;
+#define __REGV16(vaddr)		((__regbase16 *)((vaddr)&~0xff)) \
+					->offset[((vaddr)&0xff)>>1]
+#define __REG16(paddr)          __REGV16(io_p2v(paddr))
+
+/* 8/32 bit uses LDR/STR, base +/- offset_12 */
+typedef struct { volatile u8 offset[4096]; } __regbase8;
+#define __REGV8(vaddr)		((__regbase8  *)((vaddr)&~4095)) \
+					->offset[((vaddr)&4095)>>0]
+#define __REG8(paddr)		__REGV8(io_p2v(paddr))
+
+typedef struct { volatile u32 offset[4096]; } __regbase32;
+#define __REGV32(vaddr)		((__regbase32 *)((vaddr)&~4095)) \
+					->offset[((vaddr)&4095)>>2]
+
+#define __REG(paddr)		__REGV32(io_p2v(paddr))
+#else
+
+#define __REG(x)	(*((volatile unsigned long *)io_p2v(x)))
+
+#endif /* __ASSEMBLER__ */
+#endif /* __ASM_ARCH_IO_H */

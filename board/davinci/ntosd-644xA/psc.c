@@ -18,15 +18,13 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
-//#include <linux/kernel.h>
-//#include <linux/module.h>
-//#include <linux/init.h>
+/* 
+ * port to neuros bootloader 
+ */
 
 #include <asm/io.h>
 #include <asm/arch/io.h>
 #include <asm/hardware.h>
-//#include <asm/arch/psc.h>
-//#include <asm/arch/mux.h>
 #include "psc.h"
 #include "mux.h"
 
@@ -38,11 +36,6 @@
 #define PDCTL1		PSC_PDCTL1
 #define MDSTAT		PSC_MDSTAT_BASE
 #define MDCTL		PSC_MDCTL_BASE
-
-/*
-#define davinci_readl(a)	(*(volatile unsigned int   *)(a))
-#define davinci_writel(a,v)	(*(volatile unsigned int   *)(a) = (v))
-*/
 
 /* System control register offsets */
 #define PINMUX0_M         0x00
@@ -64,7 +57,6 @@ void davinci_mux_peripheral(unsigned int mux, unsigned int enable)
 		pinmux &= ~(1 << mux);
 	davinci_writel(pinmux, DAVINCI_SYSTEM_MODULE_BASE + muxreg);
 }
-
 
 static void davinci_psc_mux(unsigned int id)
 {
@@ -149,7 +141,7 @@ void davinci_psc_config(unsigned int domain, unsigned int id, char enable)
 		davinci_psc_mux(id);
 }
 
-void /*__init*/ davinci_psc_init(void)
+void  davinci_psc_init(void)
 {
 	davinci_psc_config(DAVINCI_GPSC_ARMDOMAIN, DAVINCI_LPSC_VPSSMSTR, 1);
 	davinci_psc_config(DAVINCI_GPSC_ARMDOMAIN, DAVINCI_LPSC_VPSSSLV, 1);

@@ -149,8 +149,8 @@ static int sil9034_chipInfo(void)
 {
  	u8 device_info[3] = {255,255,255} ;
 
-	device_info[0] = sil9034_read(SLAVE0,DEV_IDL) ;
-	device_info[1] = sil9034_read(SLAVE0,DEV_IDH) ;
+	device_info[1] = sil9034_read(SLAVE0,DEV_IDL) ;
+	device_info[0] = sil9034_read(SLAVE0,DEV_IDH) ;
 	device_info[2] = sil9034_read(SLAVE0,DEV_REV) ;
 	printf("Silicon Image Device Driver Id 0x%02X%02X. Rev %02i.\n",device_info[0],device_info[1],device_info[2]) ;
 
@@ -355,7 +355,7 @@ static int sil9034_720p_VideoInputConfig(void)
 	sil9034_dbg("Video DE control register 0x%x = 0x%x\n",DE_CTRL_ADDR,reg_value) ;
 
 	/* Video DE delay register */
-	sil9034_write(SLAVE0,DE_DELAY_ADDR,0x04) ;
+	sil9034_write(SLAVE0,DE_DELAY_ADDR,0x2B) ;
 	reg_value = sil9034_read(SLAVE0,DE_DELAY_ADDR) ;
 	sil9034_dbg("Video DE delay register 0x%x = 0x%x\n",DE_DELAY_ADDR,reg_value) ;
 
@@ -388,12 +388,74 @@ static int sil9034_720p_VideoInputConfig(void)
 
 	/* Video control register , ICLK = 00 EXTN = 1*/
 	reg_value = sil9034_read(SLAVE0,TX_VID_CTRL_ADDR) ;
-	sil9034_write(SLAVE0,TX_VID_CTRL_ADDR,(reg_value|0x20)) ;
+	sil9034_write(SLAVE0,TX_VID_CTRL_ADDR,(reg_value|0x30)) ;
 	reg_value = sil9034_read(SLAVE0,TX_VID_CTRL_ADDR) ;
 	sil9034_dbg("Video control register 0x%x = 0x%x\n",TX_VID_CTRL_ADDR,reg_value) ;
 
 	/* Video mode register , SYNCEXT=0 DEMUX=0 UPSMP=0 CSC=0 DITHER = 0*/
-	sil9034_write(SLAVE0,TX_VID_MODE_ADDR,0x0) ;
+	/* Jchen: according to datasheet, 0x0 value is true, but Bob's propose
+	 * value 0x3C.
+	 * sil9034_write(SLAVE0,TX_VID_MODE_ADDR,0x00) ;
+	 */
+	sil9034_write(SLAVE0,TX_VID_MODE_ADDR,0x3C) ;
+	reg_value = sil9034_read(SLAVE0,TX_VID_MODE_ADDR) ;
+	sil9034_dbg("Video mode register 0x%x = 0x%x\n",TX_VID_MODE_ADDR,reg_value) ;
+
+	return 0 ;
+}
+
+static int sil9034_1080i_VideoInputConfig(void)
+{
+	/* Output Mode YcbCr 4:2:2 */
+	u8 reg_value = 0 ;
+
+	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
+
+	sil9034_write(SLAVE0,DE_CTRL_ADDR,0x40) ;
+	reg_value = sil9034_read(SLAVE0,DE_CTRL_ADDR) ;
+	sil9034_dbg("Video DE control register 0x%x = 0x%x\n",DE_CTRL_ADDR,reg_value) ;
+
+	/* Video DE delay register 0x32*/
+	sil9034_write(SLAVE0,DE_DELAY_ADDR,0xC0) ;
+	reg_value = sil9034_read(SLAVE0,DE_DELAY_ADDR) ;
+	sil9034_dbg("Video DE delay register 0x%x = 0x%x\n",DE_DELAY_ADDR,reg_value) ;
+
+	/* Video DE top register 0x34*/
+	reg_value = sil9034_read(SLAVE0,DE_TOP_ADDR) ;
+	sil9034_write(SLAVE0,DE_TOP_ADDR,reg_value|0x14) ;
+	reg_value = sil9034_read(SLAVE0,DE_TOP_ADDR) ;
+	sil9034_dbg("Video DE top register 0x%x = 0x%x\n",DE_TOP_ADDR,reg_value) ;
+
+	/* Video DE cnt high byte register 0x37*/
+	reg_value = sil9034_read(SLAVE0,DE_CNTH_ADDR) ;
+	sil9034_write(SLAVE0,DE_CNTH_ADDR,(reg_value | 0x7)) ;
+	reg_value = sil9034_read(SLAVE0,DE_CNTH_ADDR) ;
+	sil9034_dbg("Video DE cnt high register 0x%x = 0x%x\n",DE_CNTH_ADDR,reg_value) ;
+
+	/* Video DE cnt low byte register 0x36*/
+	sil9034_write(SLAVE0,DE_CNTL_ADDR,0x80) ;
+	reg_value = sil9034_read(SLAVE0,DE_CNTL_ADDR) ;
+	sil9034_dbg("Video DE cnt low register 0x%x = 0x%x\n",DE_CNTL_ADDR,reg_value) ;
+
+	/* Video DE line high byte register 0x39*/
+	reg_value = sil9034_read(SLAVE0,DEL_H_ADDR) ;
+	sil9034_write(SLAVE0,DEL_H_ADDR,(reg_value)|0x2) ;
+	reg_value = sil9034_read(SLAVE0,DEL_H_ADDR) ;
+	sil9034_dbg("Video DE line high register 0x%x = 0x%x\n",DEL_H_ADDR,reg_value) ;
+
+	/* Video DE line low byte register 0x38*/
+	sil9034_write(SLAVE0,DEL_L_ADDR,0x1C) ;
+	reg_value = sil9034_read(SLAVE0,DEL_L_ADDR) ;
+	sil9034_dbg("Video DE line high register 0x%x = 0x%x\n",DEL_L_ADDR,reg_value) ;
+
+	/* Video control register , ICLK = 00 EXTN = 1*/
+	reg_value = sil9034_read(SLAVE0,TX_VID_CTRL_ADDR) ;
+	sil9034_write(SLAVE0,TX_VID_CTRL_ADDR,(reg_value|0x30)) ;
+	reg_value = sil9034_read(SLAVE0,TX_VID_CTRL_ADDR) ;
+	sil9034_dbg("Video control register 0x%x = 0x%x\n",TX_VID_CTRL_ADDR,reg_value) ;
+
+	/* Video mode register , SYNCEXT=0 DEMUX=0 UPSMP=0 CSC=0 DITHER = 0*/
+	sil9034_write(SLAVE0,TX_VID_MODE_ADDR,0x3C) ;
 	reg_value = sil9034_read(SLAVE0,TX_VID_MODE_ADDR) ;
 	sil9034_dbg("Video mode register 0x%x = 0x%x\n",TX_VID_MODE_ADDR,reg_value) ;
 

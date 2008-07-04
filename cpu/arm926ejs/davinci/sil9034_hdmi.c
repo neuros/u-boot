@@ -5,7 +5,7 @@
 #include <neuros_sil9034.h>
 
 /* to enable the debug msg, change the value below to 1 */
-#define DEBUG 0
+#define DEBUG 1
 
 #if DEBUG
 #define sil9034_dbg(fmt, args...) printf(fmt, ##args)
@@ -211,13 +211,13 @@ static int sil9034_powerDown(u8 enable)
 	reg_value = sil9034_read(SLAVE0,TX_SYS_CTRL1_ADDR) ;
 	if(enable)
 	{
-		sil9034_write(SLAVE1,DIAG_PD_ADDR,~(0x7)) ;
-		sil9034_write(SLAVE0,TX_SYS_CTRL1_ADDR,reg_value & ~0x1) ;
+		sil9034_write(SLAVE1,DIAG_PD_ADDR,~(PDIDCK_NORMAL|PDOSC_NORMAL|PDTOT_NORMAL)) ;
+		sil9034_write(SLAVE0,TX_SYS_CTRL1_ADDR,reg_value & ~(SET_PD)) ;
 	}
 	else
 	{
-		sil9034_write(SLAVE1,DIAG_PD_ADDR,0x7) ;
-		sil9034_write(SLAVE0,TX_SYS_CTRL1_ADDR,(reg_value | 0x1)) ;
+		sil9034_write(SLAVE1,DIAG_PD_ADDR,PDIDCK_NORMAL|PDOSC_NORMAL|PDTOT_NORMAL) ;
+		sil9034_write(SLAVE0,TX_SYS_CTRL1_ADDR,(reg_value | SET_PD)) ;
 	}
 	reg_value = sil9034_read(SLAVE0,TX_SYS_CTRL1_ADDR) ;
 	sil9034_dbg("System control register #1 0x%x = 0x%x\n",TX_SYS_CTRL1_ADDR,reg_value) ;
@@ -288,7 +288,7 @@ static int sil9034_hdmiVideoEmbSyncDec(void)
 
 	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
 	reg_value = sil9034_read(SLAVE0,INTERLACE_ADJ_MODE) ;
-	sil9034_write(SLAVE0,INTERLACE_ADJ_MODE,(reg_value & ~(0x7))) ;
+	sil9034_write(SLAVE0,INTERLACE_ADJ_MODE,(reg_value & ~(AVI_RPT_ENABLE|AVI_ENABLE|SPD_RPT_ENABLE))) ;
 	reg_value = sil9034_read(SLAVE0,INTERLACE_ADJ_MODE) ;
 	sil9034_dbg("Interlace Adjustment register 0x%x = 0x%x\n",INTERLACE_ADJ_MODE,reg_value) ;
 	return 0 ;
@@ -301,7 +301,7 @@ static int sil9034_hdmiOutputConfig(void)
 	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
 	/* HDMI control register , enable HDMI, disable DVI */
 	reg_value = sil9034_read(SLAVE1,HDMI_CTRL_ADDR) ;
-	sil9034_write(SLAVE1,HDMI_CTRL_ADDR,(reg_value | 0x1)) ;
+	sil9034_write(SLAVE1,HDMI_CTRL_ADDR,(reg_value | HDMI_MODE_ENABLE)) ;
 	reg_value = sil9034_read(SLAVE1,HDMI_CTRL_ADDR) ;
 	sil9034_dbg("Hdmi control register 0x%x = 0x%x\n",HDMI_CTRL_ADDR,reg_value) ;
 
@@ -319,7 +319,7 @@ static int sil9034_hdmiTmdsConfig(void)
 	 * page 27
 	 */
 	reg_value = sil9034_read(SLAVE0,TX_TMDS_CTRL_ADDR) ;
-	sil9034_write(SLAVE0,TX_TMDS_CTRL_ADDR,reg_value|0x5) ;
+	sil9034_write(SLAVE0,TX_TMDS_CTRL_ADDR,reg_value|(LVBIAS_ENABLE|STERM_ENABLE)) ;
 	reg_value = sil9034_read(SLAVE0,TX_TMDS_CTRL_ADDR) ;
 	sil9034_dbg("TMDS control register 0x%x = 0x%x\n",TX_TMDS_CTRL_ADDR,reg_value) ;
 }
@@ -332,9 +332,9 @@ static int sil9034_hdmiHdcpConfig(u8 enable)
 	/* HDMI HDCP configuration */
 	reg_value = sil9034_read(SLAVE0,HDCP_CTRL_ADDR) ;
 	if(enable)
-		sil9034_write(SLAVE0,HDCP_CTRL_ADDR,(reg_value | 0x1)) ;
+		sil9034_write(SLAVE0,HDCP_CTRL_ADDR,(reg_value | SET_ENC_EN)) ;
 	else
-		sil9034_write(SLAVE0,HDCP_CTRL_ADDR,(reg_value & ~(0x7F))) ;
+		sil9034_write(SLAVE0,HDCP_CTRL_ADDR,(reg_value & ~(SET_ENC_EN))) ;
 
 	reg_value = sil9034_read(SLAVE0,HDCP_CTRL_ADDR) ;
 	sil9034_dbg("Hdmi hdcp register 0x%x = 0x%x\n",HDCP_CTRL_ADDR,reg_value) ;
@@ -350,7 +350,7 @@ static int sil9034_720p_VideoInputConfig(void)
 
 	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
 	reg_value = sil9034_read(SLAVE0,DE_CTRL_ADDR) ;
-	sil9034_write(SLAVE0,DE_CTRL_ADDR,(reg_value|0x41)) ;
+	sil9034_write(SLAVE0,DE_CTRL_ADDR,(reg_value|(SET_VS_POL_NEG|SET_HS_POL_NEG|0x3))) ;
 	reg_value = sil9034_read(SLAVE0,DE_CTRL_ADDR) ;
 	sil9034_dbg("Video DE control register 0x%x = 0x%x\n",DE_CTRL_ADDR,reg_value) ;
 
@@ -388,7 +388,7 @@ static int sil9034_720p_VideoInputConfig(void)
 
 	/* Video control register , ICLK = 00 EXTN = 1*/
 	reg_value = sil9034_read(SLAVE0,TX_VID_CTRL_ADDR) ;
-	sil9034_write(SLAVE0,TX_VID_CTRL_ADDR,(reg_value|0x30)) ;
+	sil9034_write(SLAVE0,TX_VID_CTRL_ADDR,(reg_value|(CSCSEL_BT709|SET_EXTN_12BIT))) ;
 	reg_value = sil9034_read(SLAVE0,TX_VID_CTRL_ADDR) ;
 	sil9034_dbg("Video control register 0x%x = 0x%x\n",TX_VID_CTRL_ADDR,reg_value) ;
 
@@ -397,7 +397,7 @@ static int sil9034_720p_VideoInputConfig(void)
 	 * value 0x3C.
 	 * sil9034_write(SLAVE0,TX_VID_MODE_ADDR,0x00) ;
 	 */
-	sil9034_write(SLAVE0,TX_VID_MODE_ADDR,0x3C) ;
+	sil9034_write(SLAVE0,TX_VID_MODE_ADDR,(UPSMP_ENABLE|CSC_ENABLE|RANGE_ENABLE|DITHER_ENABLE)) ;
 	reg_value = sil9034_read(SLAVE0,TX_VID_MODE_ADDR) ;
 	sil9034_dbg("Video mode register 0x%x = 0x%x\n",TX_VID_MODE_ADDR,reg_value) ;
 
@@ -638,7 +638,7 @@ int sil9034_hdmi_init (void)
 
 	/* enable the avi repeat transmission */
 	sil9034_cea861InfoFrameControl1(ENABLE) ;
-	//sil9034_cea861InfoFrameControl2(ENABLE) ;
+	sil9034_cea861InfoFrameControl2(ENABLE) ;
 
 	/* CEA-861 Info Frame control setting */
 	sil9034_cea861InfoFrameSetting() ;

@@ -25,7 +25,6 @@
  * 
  * 1) Initial creation. ----------------------------------- 2008-06-10 JChen
  * 2) Add support for HDMI user interface . --------------- 2008-06-23 JChen
- * 3) Reorganize the bit field. --------------------------- 2008-07-01 JChen
  *
  */
 
@@ -332,7 +331,7 @@
 #define		PDTOT_NORMAL					(1<<0)
 #define		MPEG_ENABLE					(1<<7)
 #define		MPEG_RPT_ENABLE					(1<<6)
-#define		AUD_ENABLE					(1<<5)
+#define		CEA861_AUD_ENABLE				(1<<5)
 #define		AUD_RPT_ENABLE					(1<<4)
 #define		SPD_ENABLE					(1<<3)
 #define		SPD_RPT_ENABLE					(1<<2)
@@ -341,4 +340,6 @@
 #define		HDMI_LAYOUT0					~(1<<1)
 #define		HDMI_LAYOUT1					(1<<1)
 #define		HDMI_MODE_ENABLE				(1<<0)
+
+
 #endif /* NEUROS_SIL9034__H */

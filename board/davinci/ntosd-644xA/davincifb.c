@@ -496,8 +496,8 @@ static void enableDigitalOutput(int bEnable)
 		// Set PCR register for FULL clock
 		dispc_reg_out(VPBE_PCR, 0);
 
-		// Enable video clock output and inverse clock polarity
-		dispc_reg_out(VENC_VIDCTL, (VENC_VIDCTL_VLCKE | VENC_VIDCTL_VLCKP));
+		// Enable video clock output and non-inverse clock polarity
+		dispc_reg_out(VENC_VIDCTL, VENC_VIDCTL_VLCKE);
 
 		// Enabling SYNC pulse width processing, and turning on horizontal and vertical syncs
 		//    dispc_reg_out(VENC_SYNCCTL, (VENC_SYNCCTL_SYSW|VENC_SYNCCTL_SYEV|VENC_SYNCCTL_SYEH) );

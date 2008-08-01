@@ -459,21 +459,31 @@ static int run_nand_cmd(const char *cmd, ulong off, ulong size, u_char *addr)
 {
     char argv[5][20];
     char *arg[5]={argv[0],argv[1],argv[2],argv[3],argv[4]};
+    int argc;
     strncpy(argv[0], "nand", 30);
     strncpy(argv[1], cmd, 30);
     if(!strcmp(argv[1], "erase"))
     {
-        sprintf(argv[2], "%x", off);
-        sprintf(argv[3], "%x", size);
-        return do_nand(NULL, 0, 4, arg);
+        if(off == 0 && size ==0)
+        {
+            // erase entire nand flash
+            argc = 2;
+        }
+        else
+        {
+            sprintf(argv[2], "%x", off);
+            sprintf(argv[3], "%x", size);
+            argc = 4;
+        }
     }
     else
     {
         sprintf(argv[3], "%x", off);
         sprintf(argv[4], "%x", size);
         sprintf(argv[2], "%x", (ulong)addr);
-        return do_nand(NULL, 0, 5, arg);
+        argc = 5;
     }
+    return do_nand(NULL, 0, argc, arg);
 }
 
 static int actual_update(void)
@@ -485,6 +495,7 @@ static int actual_update(void)
     image_info_t     *iif  = &i_info;
     nand_info_t *nand;
     ulong offset, size;
+    ulong offset_uboot, size_uboot, uboot_par_block_count, uboot_block_count;
     uchar a[NAND_PAGE_SIZE];
     u_boot_desc_t desc = {
         0xA1ACED66,
@@ -540,8 +551,7 @@ static int actual_update(void)
                 //run_command("reset", 0);
                 return(-1);
             }
-            size = size - (size>>4); //must reserve some redundance for bad block
-            size = (size / NAND_PAGE_SIZE) * NAND_PAGE_SIZE;
+            size = iif->i_imagesize - 1;
             rc = run_nand_cmd("write.jffs2", offset, size, (uchar *)temp_ihdr);
             if (rc != 0 )
             {
@@ -555,17 +565,20 @@ static int actual_update(void)
         }
         else if (iif->i_type == IH_TYPE_UBOOT)
         {
-            offset = iif->i_startaddr_f;
-            size   = iif->i_endaddr_f - iif->i_startaddr_f + 1;
+            offset_uboot = iif->i_startaddr_f;
+            size_uboot   = iif->i_endaddr_f - iif->i_startaddr_f + 1;
+            uboot_par_block_count = (size_uboot + NAND_BLOCK_SIZE - 1) / NAND_BLOCK_SIZE;
+            /* uboot block count is the block count that uboot body + uboot desc take */
+            uboot_block_count = (iif->i_imagesize - 1 + NAND_PAGE_SIZE + NAND_BLOCK_SIZE - 1) / NAND_BLOCK_SIZE;
+            desc.page_count = (iif->i_imagesize - 1 + NAND_PAGE_SIZE - 1) / NAND_PAGE_SIZE;
             printf("NAND start address: %x, size: %x \n",offset, size);
-            if (run_nand_cmd("erase", offset, size, NULL))
+            for (j = 0; j < uboot_par_block_count; j++) 
             {
-                printf("nand erase failed\n");
-                //run_command("reset", 0);
-                return(-1);
-            }
-            for(j=0; j<6; j++) 
-            {
+                if (run_nand_cmd("erase", offset_uboot, size_uboot, NULL))
+                {
+                    printf("nand erase failed\n");
+                    return(-1);
+                }
                 memcpy(a, &desc, sizeof(desc));
                 offset = iif->i_startaddr_f + j * NAND_BLOCK_SIZE;
                 size = NAND_PAGE_SIZE;
@@ -574,27 +587,51 @@ static int actual_update(void)
                 {
                     printf("write u-boot-desc failed at 0x%x, size 0x%x\n", offset, size);
                     desc.start_block++;
+                    continue;
                 }
-                else 
-                {                    
-                    break;
+                offset = offset + NAND_PAGE_SIZE;
+                size = NAND_BLOCK_SIZE - NAND_PAGE_SIZE;
+                rc = nand_write(nand, offset, &size, (uchar *)temp_ihdr); //write the left pages in the first block
+                if (rc != 0 )
+                {
+                    printf("write u-boot-body failed at 0x%x, size 0x%x\n", offset, size);
+                    desc.start_block++;
+                    continue;
+                }
+                offset += size;
+                temp_ihdr += size;
+                uboot_block_count--;
+                break;
+            }
+            if (uboot_block_count > 0)
+            {
+                //continue write the left blocks from the previous block so the counter j not initialize
+                for (; j < uboot_par_block_count; j++) 
+                {
+                    rc = nand_write(nand, offset, &size, (uchar *)temp_ihdr);
+                    if (rc == 0 )
+                    {
+                        temp_ihdr += NAND_BLOCK_SIZE;
+                        uboot_block_count--;
+                        if(uboot_block_count == 0)
+                        {    
+                            break;
+                        }
+                    }
+                    size = NAND_BLOCK_SIZE;
+                    printf("write u-boot-body failed at 0x%x, size 0x%x\n", offset, size);
+                    run_nand_cmd("erase", offset, &size, NULL);
+                    offset = offset + NAND_BLOCK_SIZE;
+                    // size will be change so must revaluate
+                    size = NAND_BLOCK_SIZE;
                 }
             }
-            if(j == 6) 
+            if(j == uboot_par_block_count) 
             {
-                //run_command("reset", 0);
+                run_nand_cmd("erase", 0, 0, NULL); // if all the reserved blocks for uboot are bad  
+                                                                         // erase entire nand flash
+                run_command("reset", 0);
                 return -1;
-            }
-            offset = offset + NAND_PAGE_SIZE;
-            size   = iif->i_endaddr_f - iif->i_startaddr_f - NAND_PAGE_SIZE + 1;
-            size = size - (size>>4); //must reserve some redundance for bad block
-            size = (size / NAND_PAGE_SIZE) * NAND_PAGE_SIZE;
-            rc = run_nand_cmd("write", offset, size, (uchar *)temp_ihdr);
-            if (rc != 0 )
-            {
-                printf("nand write failed\n");
-                //run_command("reset", 0);
-                return(-1);
             }
             percent_num += uboot_per;
             //show_percent(percent_num);

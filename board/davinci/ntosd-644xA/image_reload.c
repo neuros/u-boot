@@ -608,6 +608,7 @@ static int actual_update(void)
                 //continue write the left blocks from the previous block so the counter j not initialize
                 for (; j < uboot_par_block_count; j++) 
                 {
+					size = NAND_BLOCK_SIZE;
                     rc = nand_write(nand, offset, &size, (uchar *)temp_ihdr);
                     if (rc == 0 )
                     {
@@ -620,10 +621,8 @@ static int actual_update(void)
                     }
                     size = NAND_BLOCK_SIZE;
                     printf("write u-boot-body failed at 0x%x, size 0x%x\n", offset, size);
-                    run_nand_cmd("erase", offset, &size, NULL);
+                    run_nand_cmd("erase", offset, size, NULL);
                     offset = offset + NAND_BLOCK_SIZE;
-                    // size will be change so must revaluate
-                    size = NAND_BLOCK_SIZE;
                 }
             }
             if(j == uboot_par_block_count) 

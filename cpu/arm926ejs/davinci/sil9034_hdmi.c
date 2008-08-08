@@ -4,6 +4,7 @@
 #include <asm/arch/i2c_defs.h>
 #include <neuros_sil9034.h>
 
+#define mdelay(n) ({unsigned long msec=(n); while (msec--) udelay(1000);})
 /* to enable the debug msg, change the value below to 1 */
 #define DEBUG 0
 
@@ -13,6 +14,9 @@
 #define sil9034_dbg(fmt...)
 #endif
 
+#define HDCP_HANDSHAKE_RETRY	5
+
+static char an_ksv_data[10] ;
 /* sil9034 i2c read function . return error -1, success value*/
 static int sil9034_read(u8 slave,u8 reg)
 {
@@ -52,7 +56,10 @@ static int sil9034_write(u8 slave, u8 reg, uchar value)
 			error = 1 ;
 	}
 	else
+	{
+		printf("No such slave\n") ;
 		error = 1 ;
+	}
 
 	if(error)
 	{
@@ -156,12 +163,72 @@ static int sil9034_chipInfo(void)
 
 	return 0 ;
 }
+static int sil9034_autoRiCheck(u8 enable)
+{
+	u8 reg_value ;
+
+	reg_value = sil9034_read(SLAVE0,RI_CMD_ADDR) ;
+	sil9034_write(SLAVE0,RI_CMD_ADDR, reg_value|SET_RI_ENABLE);
+	return 0 ;
+}
+
+static int sil9034_sentCPPackage(u8 enable)
+{
+	u8 reg_value ;
+	u8 timeout = 64 ;
+
+	reg_value = sil9034_read(SLAVE0,INF_CTRL2) ;
+	sil9034_write(SLAVE1,INF_CTRL2,reg_value &~BIT_CP_REPEAT) ;
+	if(enable)
+		sil9034_write(SLAVE1,CP_IF_ADDR,BIT_CP_AVI_MUTE_SET) ;
+	else
+		sil9034_write(SLAVE1,CP_IF_ADDR,BIT_CP_AVI_MUTE_CLEAR) ;
+
+	while(timeout--)
+	{
+		if(!sil9034_read(SLAVE0,INF_CTRL2)&BIT_CP_REPEAT)
+			break ;
+	}
+
+	if(timeout)
+		sil9034_write(SLAVE1,INF_CTRL2,reg_value |(BIT_CP_REPEAT|BIT_CP_ENABLE)) ;
+
+	return 0 ;
+}
+
+static int sil9034_wakeupHdmiTx(void)
+{
+	u8 reg_value ;
+
+	reg_value = sil9034_read(SLAVE0,TX_SYS_CTRL1_ADDR) ;
+	sil9034_write(SLAVE0,TX_SYS_CTRL1_ADDR,reg_value|SET_PD) ;
+	sil9034_write(SLAVE0,INT_CNTRL_ADDR,0) ;
+	reg_value = sil9034_read(SLAVE0,INF_CTRL1) ;
+	sil9034_write(SLAVE1,INF_CTRL1,reg_value |BIT_AVI_REPEAT|BIT_AUD_REPEAT) ;
+
+	return 0 ;
+}
 
 static int sil9034_cea861InfoFrameSetting(void)
 {
 	u8 avi_info_addr ;
+	u8 reg_value ;
 
 	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
+
+	reg_value = sil9034_read(SLAVE1,INF_CTRL1) ;
+	sil9034_write(SLAVE1,INF_CTRL1,reg_value & (~BIT_AVI_REPEAT)) ;
+	mdelay(64) ; // Delay VSync for unlock DATA buffer
+	if(sil9034_read(SLAVE1,INF_CTRL1)&BIT_AVI_ENABLE)
+		sil9034_dbg("Sent AVI error\n") ;
+	else
+		sil9034_dbg("Silicon Image sending AVI success.\n") ;
+
+	if(sil9034_read(SLAVE1,INF_CTRL1)&BIT_AUD_ENABLE)
+		sil9034_dbg("Sent AUD error\n") ;
+	else
+		sil9034_dbg("Silicon Image sending AUD success.\n") ;
+
 
 	/* set the info frame type according to CEA-861 datasheet */
 	avi_info_addr = AVI_IF_ADDR ;
@@ -173,16 +240,16 @@ static int sil9034_cea861InfoFrameSetting(void)
 	sil9034_write(SLAVE1,avi_info_addr++,0x02) ;
 
 	/* AVI length */
-	sil9034_write(SLAVE1,avi_info_addr++,0x0D) ;
+	sil9034_write(SLAVE1,avi_info_addr++,0x13) ;
 
 	/* AVI CRC */
-	sil9034_write(SLAVE1,avi_info_addr++,(0x82 + 0x02 + 0x0D + 0x3D)) ;
+	sil9034_write(SLAVE1,avi_info_addr++,(0x82 + 0x02 + 0x13 + 0x1D)) ;
 
 	/* AVI DATA BYTE , according to Sil FAE, 3 byte is enought.
 	 * page 102
 	 */
 	/* 0 | Y1 | Y0 | A0 | B1 | B0 | S1 | S0 */
-	sil9034_write(SLAVE1,avi_info_addr++,0x3D) ;
+	sil9034_write(SLAVE1,avi_info_addr++,0x1D) ;
 
 	/* C1 | C0 | M1 | M0 | R3 | R2 | R1 | R0 */
 	sil9034_write(SLAVE1,avi_info_addr++,0x68) ;
@@ -190,11 +257,14 @@ static int sil9034_cea861InfoFrameSetting(void)
 	/*  0 | 0 | 0 | 0 | 0 | 0 | SC1 | SC0 */
 	sil9034_write(SLAVE1,avi_info_addr++,0x3) ;
 
+	reg_value = sil9034_read(SLAVE1,INF_CTRL1) ;
+	sil9034_write(SLAVE1,INF_CTRL1,reg_value | (BIT_AVI_ENABLE|BIT_AVI_REPEAT)) ;
 	return 0 ;
 }
 
 static int sil9034_ddcSetting(void)
 {
+	sil9034_write(SLAVE0,DDC_ADDR,HDCP_RX_SLAVE) ;
 	return 0 ;
 }
 
@@ -211,12 +281,12 @@ static int sil9034_powerDown(u8 enable)
 	reg_value = sil9034_read(SLAVE0,TX_SYS_CTRL1_ADDR) ;
 	if(enable)
 	{
-		sil9034_write(SLAVE1,DIAG_PD_ADDR,~(PDIDCK_NORMAL|PDOSC_NORMAL|PDTOT_NORMAL)) ;
+		sil9034_write(SLAVE1,DIAG_PD_ADDR,PDIDCK_NORMAL|PDOSC_NORMAL|PDTOT_NORMAL) ;
 		sil9034_write(SLAVE0,TX_SYS_CTRL1_ADDR,reg_value & ~(SET_PD)) ;
 	}
 	else
 	{
-		sil9034_write(SLAVE1,DIAG_PD_ADDR,PDIDCK_NORMAL|PDOSC_NORMAL|PDTOT_NORMAL) ;
+		sil9034_write(SLAVE1,DIAG_PD_ADDR,~(PDIDCK_NORMAL|PDOSC_NORMAL|PDTOT_NORMAL)) ;
 		sil9034_write(SLAVE0,TX_SYS_CTRL1_ADDR,(reg_value | SET_PD)) ;
 	}
 	reg_value = sil9034_read(SLAVE0,TX_SYS_CTRL1_ADDR) ;
@@ -227,17 +297,126 @@ static int sil9034_powerDown(u8 enable)
 	return 0 ;
 }
 
+static int sil9034_triggerRom(void)
+{
+	u8 reg_value ;
+
+	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
+	reg_value = sil9034_read(SLAVE0,KEY_COMMAND_ADDR) ;
+	sil9034_write(SLAVE0,KEY_COMMAND_ADDR,reg_value & ~LD_KSV) ;
+	mdelay(10) ;
+	sil9034_write(SLAVE0,KEY_COMMAND_ADDR,reg_value |LD_KSV) ;
+	mdelay(10) ;
+	sil9034_write(SLAVE0,KEY_COMMAND_ADDR,reg_value & ~LD_KSV) ;
+	return 0 ;
+}
+
 static int sil9034_swReset(void)
 {
+	/* use to temporary save inf_ctrl */
+	u8 temp1 ;
+	u8 temp2 ;
+
+	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
+
+	temp1 = sil9034_read(SLAVE1,INF_CTRL1) ;
+	temp2 = sil9034_read(SLAVE1,INF_CTRL2) ;
 	/*
 	 * audio fifo reset enable
 	 * software reset enable
 	 */
-	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
+	while(!sil9034_read(SLAVE0,TX_STAT_ADDR)&P_STABLE)
+		mdelay(10) ;
 	sil9034_write(SLAVE0,TX_SWRST_ADDR,(BIT_TX_SW_RST|BIT_TX_FIFO_RST)) ;
-	udelay(10000) ;
-	sil9034_write(SLAVE0,TX_SWRST_ADDR,~(BIT_TX_SW_RST|BIT_TX_FIFO_RST)) ;
+	mdelay(10) ;
+	sil9034_write(SLAVE0,TX_SWRST_ADDR,0) ;
+	mdelay(64) ; // allow TCLK (sent to Rx across the HDMS link) to stabilize
+
+	/* restore */
+	sil9034_write(SLAVE1,INF_CTRL1,temp1) ;
+	sil9034_write(SLAVE1,INF_CTRL2,temp2) ;
 	return 0 ;
+}
+
+static char *sil9034_ddc_read(u8 *value,u8 reg, u8 length)
+{
+	u8 count = 0 ;
+
+	sil9034_write(SLAVE0,DDC_ADDR,HDCP_RX_SLAVE) ;
+	sil9034_write(SLAVE0,DDC_OFFSET_ADDR,reg) ;
+	sil9034_write(SLAVE0,DDC_CNT1_ADDR,length) ;
+	sil9034_write(SLAVE0,DDC_CNT2_ADDR,0) ;
+	sil9034_write(SLAVE0,DDC_CMD_ADDR,MASTER_CMD_CLEAR_FIFO) ;
+	sil9034_write(SLAVE0,DDC_CMD_ADDR,MASTER_CMD_SEQ_RD) ;
+
+	while(sil9034_read(SLAVE0,DDC_STATUS_ADDR)&BIT_MDDC_ST_IN_PROGR)
+		mdelay(10) ;
+
+	for(count=0 ;count < length ; count++)
+	{
+		value[count] = sil9034_read(SLAVE0,DDC_DATA_ADDR) ;
+	}
+
+	while(sil9034_read(SLAVE0,DDC_STATUS_ADDR)&BIT_MDDC_ST_IN_PROGR)
+		mdelay(10) ;
+
+	sil9034_write(SLAVE0,DDC_CMD_ADDR,MASTER_CMD_ABORT) ;
+	sil9034_write(SLAVE0,DDC_CMD_ADDR,MASTER_CMD_CLOCK) ;
+	sil9034_write(SLAVE0,DDC_MAN_ADDR,0) ;
+	return NULL ;
+}
+static int sil9034_compareR0(void)
+{
+	u8 r0rx[2] ;
+	u8 r0tx[2] ;
+
+	/* read 2 byte from ddc */
+	sil9034_ddc_read(&r0rx[0],DDC_RI_ADDR,2) ;
+	r0tx[0] = sil9034_read(SLAVE0,HDCP_RI1) ;
+	r0tx[1] = sil9034_read(SLAVE0,HDCP_RI2) ;
+
+	if((r0rx[0]==r0tx[0])&&(r0rx[1]==r0tx[1]))
+	{
+		printf("HDCP handshake complete match.\n") ;
+		return TRUE ;
+	}
+
+	return FALSE ;
+}
+static int sil9034_isRepeater(void)
+{
+	u8 reg_value ;
+
+	/* read 1 byte from ddc */
+	sil9034_ddc_read(&reg_value,DDC_BCAPS_ADDR,1) ;
+	if(reg_value&DDC_BIT_REPEATER)
+		return TRUE ;
+
+	return FALSE ;
+}
+
+static int sil9034_checkHdcpDevice(void)
+{
+	u8 total = 0 ;
+	u8 bits = 0 ;
+	u8 count = 0 ;
+
+	/* read 5 byte from ddc */
+	sil9034_ddc_read(&an_ksv_data[0],DDC_BKSV_ADDR,5) ;
+
+	/* calculate bits */
+	for(count=0 ;count<5 ; count++)
+	{
+		sil9034_dbg("bksv %d,0x%x\n",count,an_ksv_data[count]) ;
+		for(bits=0 ;bits<8 ; bits++)
+			if(an_ksv_data[count] & (1<<bits))
+				total++ ;
+	}
+
+	if(total == HDCP_ACC)
+		return TRUE ;
+	else
+		return FALSE ;
 }
 
 static int sil9034_generalControlPacket(u8 enable)
@@ -247,16 +426,15 @@ static int sil9034_generalControlPacket(u8 enable)
 	 * mute the video & audio
 	 */
 	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
-	reg_value = sil9034_read(SLAVE1,GCP_BYTE1) ;
 	if(enable)
 	{
 		/* set avmute flag */
-		sil9034_write(SLAVE1,GCP_BYTE1,(reg_value | SET_AVMUTE)) ;
+		sil9034_write(SLAVE1,GCP_BYTE1,SET_AVMUTE) ;
 	}
 	else
 	{
 		/* clear avmute flag */
-		sil9034_write(SLAVE1,GCP_BYTE1,(reg_value | CLR_AVMUTE)) ;
+		sil9034_write(SLAVE1,GCP_BYTE1,CLR_AVMUTE) ;
 	}
 	reg_value = sil9034_read(SLAVE1,GCP_BYTE1) ;
 	sil9034_dbg("General control packet register 0x%x = 0x%x\n",GCP_BYTE1,reg_value) ;
@@ -270,29 +448,27 @@ static int sil9034_audioInputConfig(void)
 
 	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
 	/* Audio mode register */
-	sil9034_write(SLAVE1,AUD_MODE_ADDR,0xF9) ;
+	sil9034_write(SLAVE1,AUD_MODE_ADDR,SPDIF_ENABLE|AUD_ENABLE) ;
 	reg_value = sil9034_read(SLAVE1,AUD_MODE_ADDR) ;
 	sil9034_dbg("Audio in mode register 0x%x = 0x%x\n",AUD_MODE_ADDR,reg_value) ;
 
+	/* ACR N software value */
+	sil9034_write(SLAVE1,N_SVAL1_ADDR,0) ;
+	sil9034_write(SLAVE1,N_SVAL2_ADDR,0x18) ;
+	sil9034_write(SLAVE1,N_SVAL3_ADDR,0) ;
+
+	/* ACR ctrl */
+	sil9034_write(SLAVE1,ACR_CTRL_ADDR,NCTSPKT_ENABLE) ;
+
 	/* ACR audio frequency register: * MCLK=128 Fs */
-	sil9034_write(SLAVE1,FREQ_SVAL_ADDR,0) ;
+	sil9034_write(SLAVE1,FREQ_SVAL_ADDR,0x4) ;
 	reg_value = sil9034_read(SLAVE1,FREQ_SVAL_ADDR) ;
 	sil9034_dbg("Audio frequency register 0x%x = 0x%x\n",FREQ_SVAL_ADDR,reg_value) ;
 	
 	return 0 ;
 }
 
-static int sil9034_hdmiVideoEmbSyncDec(void)
-{
-	u8 reg_value ;
 
-	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
-	reg_value = sil9034_read(SLAVE0,INTERLACE_ADJ_MODE) ;
-	sil9034_write(SLAVE0,INTERLACE_ADJ_MODE,(reg_value & ~(AVI_RPT_ENABLE|AVI_ENABLE|SPD_RPT_ENABLE))) ;
-	reg_value = sil9034_read(SLAVE0,INTERLACE_ADJ_MODE) ;
-	sil9034_dbg("Interlace Adjustment register 0x%x = 0x%x\n",INTERLACE_ADJ_MODE,reg_value) ;
-	return 0 ;
-}
 
 static int sil9034_hdmiOutputConfig(void)
 {
@@ -322,6 +498,172 @@ static int sil9034_hdmiTmdsConfig(void)
 	sil9034_write(SLAVE0,TX_TMDS_CTRL_ADDR,reg_value|(LVBIAS_ENABLE|STERM_ENABLE)) ;
 	reg_value = sil9034_read(SLAVE0,TX_TMDS_CTRL_ADDR) ;
 	sil9034_dbg("TMDS control register 0x%x = 0x%x\n",TX_TMDS_CTRL_ADDR,reg_value) ;
+}
+
+char sil9034_hotplugEvent(void)
+{
+	u8 reg_value ;
+
+	reg_value = sil9034_read(SLAVE0,TX_STAT_ADDR) ;
+	if(reg_value&SET_HPD)
+		return 1 ;
+	else
+		return 0 ;
+}
+
+static char *sil9034_ddc_write(u8 *value,u8 reg, u8 length)
+{
+	u8 count = 0 ;
+
+	while(sil9034_read(SLAVE0,DDC_STATUS_ADDR)&BIT_MDDC_ST_IN_PROGR)
+		mdelay(10) ;
+
+	sil9034_write(SLAVE0,DDC_ADDR,HDCP_RX_SLAVE) ;
+	sil9034_write(SLAVE0,DDC_OFFSET_ADDR,reg) ;
+	sil9034_write(SLAVE0,DDC_CNT1_ADDR,length) ;
+	sil9034_write(SLAVE0,DDC_CNT2_ADDR,0) ;
+	sil9034_write(SLAVE0,DDC_CMD_ADDR,MASTER_CMD_CLEAR_FIFO) ;
+
+	for(count=0 ;count < length ; count++)
+	{
+		sil9034_write(SLAVE0,DDC_DATA_ADDR,value[count]) ;
+		sil9034_dbg("DDC write 0x%x\n",value[count]) ;
+	}
+	sil9034_write(SLAVE0,DDC_CMD_ADDR,MASTER_CMD_SEQ_WR) ;
+
+	while(sil9034_read(SLAVE0,DDC_STATUS_ADDR)&BIT_MDDC_ST_IN_PROGR)
+		mdelay(10) ;
+
+	sil9034_dbg("FIFO is %d\n",sil9034_read(SLAVE0,DDC_FIFOCNT_ADDR)) ;
+	sil9034_write(SLAVE0,DDC_CMD_ADDR,MASTER_CMD_ABORT) ;
+	sil9034_write(SLAVE0,DDC_CMD_ADDR,MASTER_CMD_CLOCK) ;
+	sil9034_write(SLAVE0,DDC_MAN_ADDR,0) ;
+	return NULL ;
+}
+
+static int sil9034_writeAnHdcpRx(void)
+{ 
+	/* write 8 byte to ddc hdcp rx*/
+	sil9034_ddc_write(&an_ksv_data[0],DDC_AN_ADDR,8) ;
+
+	return 0 ;
+}
+static int sil9034_writeBksvHdcpTx(void)
+{ 
+	u8 count = 0 ;
+
+	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
+
+	for(count=0; count<5; count++)
+	{
+		 sil9034_write(SLAVE0,HDCP_BKSV1_ADDR+count,an_ksv_data[count]) ;
+		 sil9034_dbg("write bksv to tx 0x%x\n",an_ksv_data[count]) ;
+	}
+
+	return 0 ;
+}
+static int sil9034_readBksvHdcpRx(void)
+{ 
+	u8 count = 0 ;
+
+	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
+
+	/* read 5 byte from ddc */
+	sil9034_ddc_read(&an_ksv_data[0],DDC_BKSV_ADDR,5) ;
+	for(count=0; count<5; count++)
+	{
+		sil9034_dbg("bksv data %d 0x%x\n",count,an_ksv_data[count]) ;
+	}
+
+	return 0 ;
+}
+
+static int sil9034_writeAksvHdcpRx(void)
+{ 
+	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
+	/* write 5 byte to ddc hdcp rx*/
+	sil9034_ddc_write(&an_ksv_data[0],DDC_AKSV_ADDR,5) ;
+
+	return 0 ;
+}
+
+static int sil9034_readAksvHdcpTx(void)
+{ 
+	u8 count = 0 ;
+
+	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
+
+	for(count=0; count<5; count++)
+	{
+		an_ksv_data[count] = sil9034_read(SLAVE0,HDCP_AKSV1_ADDR+count) ;
+		sil9034_dbg("aksv data %d 0x%x\n",count,an_ksv_data[count]) ;
+	}
+
+	return 0 ;
+}
+
+static int sil9034_readAnHdcpTx(void)
+{ 
+	u8 count = 0 ;
+
+	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
+
+	for(count=0; count<8; count++)
+	{
+		an_ksv_data[count] = sil9034_read(SLAVE0,HDCP_AN1_ADDR+count) ;
+		sil9034_dbg("an data %d 0x%x\n",count,an_ksv_data[count]) ;
+	}
+
+	return 0 ;
+}
+
+static int sil9034_generateAn(void)
+{ 
+	u8 reg_value ;
+
+	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
+
+	reg_value = sil9034_read(SLAVE0,HDCP_CTRL_ADDR) ;
+	sil9034_write(SLAVE0,HDCP_CTRL_ADDR,reg_value&~TX_ANSTOP) ;
+	mdelay(10) ;
+	sil9034_write(SLAVE0,HDCP_CTRL_ADDR,reg_value|TX_ANSTOP) ;
+
+	return 0 ;
+}
+
+static int sil9034_StopRepeatBit(void)
+{ 
+	u8 reg_value ;
+
+	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
+	reg_value = sil9034_read(SLAVE0,HDCP_CTRL_ADDR) ;
+	sil9034_write(SLAVE0,HDCP_CTRL_ADDR,reg_value&~RX_RPTR_ENABLE) ;
+	return 0 ;
+}
+
+static int sil9034_releaseCPReset(void)
+{ 
+	u8 reg_value ;
+
+	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
+	reg_value = sil9034_read(SLAVE0,HDCP_CTRL_ADDR) ;
+	sil9034_write(SLAVE0,HDCP_CTRL_ADDR,reg_value|SET_CP_RESTN) ;
+
+	return 0 ;
+}
+
+static int sil9034_toggleRepeatBit(void)
+{ 
+	u8 reg_value ;
+
+	sil9034_dbg("----------%s----------\n",__FUNCTION__) ;
+	reg_value = sil9034_read(SLAVE0,HDCP_CTRL_ADDR) ;
+	if(reg_value & RX_RPTR_ENABLE)
+		sil9034_write(SLAVE0,HDCP_CTRL_ADDR,reg_value&~RX_RPTR_ENABLE) ;
+	else
+		sil9034_write(SLAVE0,HDCP_CTRL_ADDR,reg_value|RX_RPTR_ENABLE) ;
+
+	return 0 ;
 }
 
 static int sil9034_hdmiHdcpConfig(u8 enable)
@@ -597,6 +939,7 @@ int sil9034_dumpInterruptStateStatus(void)
 /* sil9034 initialize function */
 int sil9034_hdmi_init (void)
 {
+	static int check_time = 0 ;
         printf("Silicon Image 9034 initialize.\n");
 
 	/* read chip id & revision */
@@ -605,18 +948,37 @@ int sil9034_hdmi_init (void)
 	/* power down occilator */
 	sil9034_powerDown(ENABLE) ;
 
-	/* read flag from env and tune the video input table 
-	 * according to DM320 hardware spec */
-       	sil9034_720p_VideoInputConfig() ;
+	/* TMDS control register */
+	sil9034_hdmiTmdsConfig() ;
 
 	/* Tune the audio input table according to DM320 hardware spec */
 	sil9034_audioInputConfig() ;
 
+	/* read flag from env and tune the video input table 
+	 * according to DM320 hardware spec */
+       	sil9034_720p_VideoInputConfig() ;
+
 	/* software reset */
 	sil9034_swReset() ;
 
-	/* power up occilator */
-	sil9034_powerDown(DISABLE) ;
+	/* Trigger ROM */
+	sil9034_triggerRom() ;
+
+	/* Audio Info Frame control setting */
+	sil9034_audioInfoFrameSetting() ;
+       	sil9034_audioInputConfig() ;
+
+	/* software reset */
+	sil9034_swReset() ;
+
+	/* CEA-861 Info Frame control setting */
+	sil9034_cea861InfoFrameSetting() ;
+
+	/* Wake up HDMI TX */
+	sil9034_wakeupHdmiTx() ;
+
+	/* Sent CP package */
+	sil9034_sentCPPackage(ENABLE) ;
 
 	/* unmask the interrupt status */
 	sil9034_unmaskInterruptStatus() ;
@@ -624,24 +986,60 @@ int sil9034_hdmi_init (void)
 	/* Hdmi output setting */
 	sil9034_hdmiOutputConfig() ;
 
-	/* TMDS control register */
-	sil9034_hdmiTmdsConfig() ;
-
 	/* ddc master config */
 	sil9034_ddcSetting() ;
+
+	/* General control packet */
+	sil9034_sentCPPackage(DISABLE) ;
+
+	sil9034_cea861InfoFrameControl2(ENABLE) ;
 
 	/* HDCP control handshaking */
 	sil9034_hdmiHdcpConfig(ENABLE) ;
 
-	/* enable the avi repeat transmission */
-	sil9034_cea861InfoFrameControl1(ENABLE) ;
-	//sil9034_cea861InfoFrameControl2(ENABLE) ;
+	/* On u-boot, we check only 5 time if Hdcp failure. */
+	for(check_time=0 ; check_time < HDCP_HANDSHAKE_RETRY ; check_time++)
+	{
+		if(sil9034_hotplugEvent())
+		{
+			sil9034_sentCPPackage(ENABLE) ;
+			if(sil9034_checkHdcpDevice() == TRUE)
+			{
+				sil9034_dbg("got 20's 1 from TV\n") ;
+				/* Random key */
+				sil9034_toggleRepeatBit() ;
+				sil9034_releaseCPReset() ;
+				sil9034_StopRepeatBit() ;
+				sil9034_generateAn() ;
+				/* Handshake start */
+				sil9034_readAnHdcpTx() ;
+				sil9034_writeAnHdcpRx() ;
+				sil9034_readAksvHdcpTx() ;
+				sil9034_writeAksvHdcpRx() ;
+				sil9034_readBksvHdcpRx() ;
+				sil9034_writeBksvHdcpTx() ;
+				if(sil9034_isRepeater()==TRUE)
+					printf("This is repeater,not support.\n") ;
+				/* Finally, compare key */
+				mdelay(100) ; //delay for R0 calculation
+				if(sil9034_compareR0()==FALSE)
+					continue ;
+				else
+				{
+					sil9034_sentCPPackage(DISABLE) ;
+					sil9034_autoRiCheck(ENABLE) ;
+					break ;
+				}
 
-	/* CEA-861 Info Frame control setting */
-	sil9034_cea861InfoFrameSetting() ;
-
-	/* Audio Info Frame control setting */
-	sil9034_audioInfoFrameSetting() ;
+			}
+			else // no 20 ones and zeros
+			{
+				/* mute */
+				sil9034_sentCPPackage(ENABLE) ;
+				sil9034_dbg("TV not send 20's 1,retry!!\n") ;
+			}
+		}
+	}
 
 	sil9034_dumpSystemStatus() ;
 	sil9034_dumpDataCtrlStatus() ;

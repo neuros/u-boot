@@ -208,8 +208,6 @@ int misc_init_r (void)
 		printf("ETH PHY   : %s\n", phy.name);
 	}
 
-	/* start YPbPr with 720p */
-	start_davincifb("output=720p") ;
 	sil9034_hdmi_init() ;
 
 	i2c_read (0x39, 0x00, 1, (u_int8_t *)&i, 1);

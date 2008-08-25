@@ -42,7 +42,7 @@ int do_update_uboot(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 }
 
 U_BOOT_CMD(
-		  update_uboot,   5,  1,  do_update_uboot,
+		  write_uboot,   5,  1,  do_update_uboot,
 		  "for update uboot\n",
 		  NULL
 		  );

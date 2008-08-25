@@ -192,6 +192,7 @@
 /*=======================*/
 /*  UPGRADE IMAGE  Support      */
 /*=======================*/
+#define CONFIG_CMD_UPDATE_UBOOT
 #define CONFIG_UPGRADE_IMAGE
 #if defined(CONFIG_UPGRADE_IMAGE)
 #define SAFE_SIZE (224*1024*1024)

@@ -53,11 +53,82 @@
 /* System contorl register */
 #define TX_SYS_CTRL4_ADDR					(0x0C)
 
+/* BKSV register : 5 bytes, Read only (RO), receiver KSV */
+#define DDC_BKSV_ADDR						(0x00)
+
+/* AN register : 8 bytes, write only (WO) */
+#define DDC_AN_ADDR						 (0x18)
+
+/* AKSV register : 5 bytes, write only (WO) */
+#define DDC_AKSV_ADDR						 (0x10)
+
+/* RI register : 2 bytes, read only (R0) ,Ack from receiver R) */
+#define DDC_RI_ADDR						 (0x08)
+
+/* DDC fifo register : 1 bytes */
+#define DDC_BCAPS_ADDR						 (0x40)
+
+
 /* HDCP control register */
 #define HDCP_CTRL_ADDR						(0x0F)
+#define HDCP_RX_SLAVE						(0x74)
 
 /* Data control register */
 #define DCTL_ADDR						(0x0D)
+
+/* Hdcp RI register */
+#define HDCP_RI1						(0x22)
+#define HDCP_RI2						(0x23)
+#define HDCP_RI128_COMP						(0x24)
+
+/* Hdcp BKSV register */
+#define HDCP_BKSV1_ADDR						(0x10)
+#define HDCP_BKSV2_ADDR						(0x11)
+#define HDCP_BKSV3_ADDR						(0x12)
+#define HDCP_BKSV4_ADDR						(0x13)
+#define HDCP_BKSV5_ADDR						(0x14)
+
+/* Hdcp AN register */
+#define HDCP_AN1_ADDR						(0x15)
+#define HDCP_AN2_ADDR						(0x16)
+#define HDCP_AN3_ADDR						(0x17)
+#define HDCP_AN4_ADDR						(0x18)
+#define HDCP_AN5_ADDR						(0x19)
+#define HDCP_AN6_ADDR						(0x1A)
+#define HDCP_AN7_ADDR						(0x1B)
+#define HDCP_AN8_ADDR						(0x1C)
+
+/* Hdcp AKSV register */
+#define HDCP_AKSV1_ADDR						(0x1D)
+#define HDCP_AKSV2_ADDR						(0x1E)
+#define HDCP_AKSV3_ADDR						(0x1F)
+#define HDCP_AKSV4_ADDR						(0x20)
+#define HDCP_AKSV5_ADDR						(0x21)
+
+/* Rom command */
+#define KEY_COMMAND_ADDR					(0xFA)
+
+/* Hdcp master command */
+#define MASTER_CMD_ABORT   					(0x0f)                    // Command Codes
+#define MASTER_CMD_CLEAR_FIFO					(0x09)
+#define MASTER_CMD_CLOCK					(0x0a)
+#define MASTER_CMD_CUR_RD					(0x00)
+#define MASTER_CMD_SEQ_RD					(0x02)
+#define MASTER_CMD_ENH_RD					(0x04)
+#define MASTER_CMD_SEQ_WR					(0x06)
+
+#define MASTER_FIFO_WR_USE					(0x01)
+#define MASTER_FIFO_RD_USE					(0x02)
+#define MASTER_FIFO_EMPTY					(0x04)
+#define MASTER_FIFO_FULL					(0x08)
+#define MASTER_DDC_BUSY						(0x10)
+#define MASTER_DDC_NOACK					(0x20)
+#define MASTER_DDC_STUCK					(0x40)
+#define MASTER_DDC_RSVD						(0x80)
+
+#define BIT_MDDC_ST_IN_PROGR					(0x10)
+#define BIT_MDDC_ST_I2C_LOW					(0x40)
+#define BIT_MDDC_ST_NO_ACK					(0x20)
 
 /* Video Hbit to HSYNC register */
 #define HBIT_2HSYNC1						(0x40)
@@ -153,6 +224,18 @@
 /* Video mode register */
 #define TX_VID_MODE_ADDR					(0x4A)
 
+/* DDC i2c manual register */
+#define DDC_MAN_ADDR						(0xEC)
+#define DDC_ADDR						(0xED)
+#define DDC_SEGM_ADDR						(0xEE)
+#define DDC_OFFSET_ADDR						(0xEF)
+#define DDC_CNT1_ADDR						(0xF0)
+#define DDC_CNT2_ADDR						(0xF1)
+#define DDC_STATUS_ADDR						(0xF2)
+#define DDC_CMD_ADDR						(0xF3)
+#define DDC_DATA_ADDR						(0xF4)
+#define DDC_FIFOCNT_ADDR					(0xF5)
+
 
 
 
@@ -181,6 +264,19 @@
 /* Audio IN mode control register */
 #define AUD_MODE_ADDR						(0x14)
 
+/* Ri status register */
+#define RI_STAT_ADDR						(0x26)
+
+/* RI COMMAND */
+#define RI_CMD_ADDR						(0x27)
+
+/* RI Line start register */
+#define RI_LINE_START_ADDR					(0x28)
+
+/* RI RX register */
+#define RI_RX_L_ADDR						(0x29)
+#define RI_RX_H_ADDR						(0x2A)
+
 /* HDMI control register */
 #define HDMI_CTRL_ADDR						(0x2F)
 
@@ -203,11 +299,17 @@
 #define GENERIC1_IF_ADDR 0xC0
 #define GENERIC2_IF_ADDR 0xE0
 #define CP_IF_ADDR   0xDF // Contain Protect 1- byte Frame Info Frame
-#define GEN_RPT		0x1
-#define EN_EN		0x2
-#define GCP_RPT		0x4
-#define GCP_EN		0x8
+#define BIT_CP_AVI_MUTE_SET    0x01
+#define BIT_CP_AVI_MUTE_CLEAR  0x10
+
+#define GEN_RPT		(1<<0)
+#define EN_EN		(1<<1)
+#define GCP_RPT		(1<<2)
+#define GCP_EN		(1<<3)
+#define GEN2_RPT	(1<<4)
+#define GEN2_EN		(1<<5)
 #define CLR_AVMUTE	0x10
+#define SET_AVMUTE	0x01
 #define SET_AVMUTE	0x01
 
 
@@ -216,7 +318,9 @@
 
 /* value defined */
 #define		ENABLE						1
+#define		TRUE						1
 #define		DISABLE						0
+#define		FALSE						0
 #define		INT_ENABLE					(0x1)
 #define		BIT_TX_SW_RST					(0x01)
 #define		BIT_TX_FIFO_RST					(0x02)
@@ -236,6 +340,18 @@
 #define		AUDIO_IFOFRAMES_EN_RPT				(0x30)
 
 
+/*******************************HDMI Interface *********************/
+#define		DO_NOTHING					0
+#define		SWITCH_480P					1
+#define		SWITCH_720P					2
+#define 	SWITCH_1080I					3
+#define		HDCP_EXCHANGE					4
+#define		SHOW_REGISTER					5
+/*******************************WORK QUEUE *************************/
+#define		HDCP_ENABLE					6
+#define		HDCP_DISABLE					7
+#define		HDCP_RI_STATUS					8
+#define		EVENT_NOTIFY					9
 /******************************* BIT FIELD *********************/
 #define		SET_FIFORTS					(1<<1)
 #define 	SET_SWRST					(1<<0)
@@ -248,7 +364,7 @@
 #define		SET_VLOW					(1<<7)
 #define		SET_RSEN					(1<<2)
 #define		SET_HPD						(1<<1)
-#define		SET_P_STABLE					(1<<0)
+#define		P_STABLE					(1<<0)
 #define		SET_PLLF_80UA					(0xf<<1)
 #define		SET_PLLF_45UA					(0x8<<1)
 #define		SET_PLLF_40UA					(0x7<<1)
@@ -259,12 +375,13 @@
 #define		PFEN_ENABLE					(0x1)
 #define		SET_VID_BLANK					(1<<2)
 #define		SET_AUD_MUTE					(1<<1)
+#define		BKSV_ERR					(1<<5)
 #define		RX_RPTR_ENABLE					(1<<4)
-#define		TX_ANSTOP_ENABLE				(1<<3)
+#define		TX_ANSTOP					(1<<3)
 #define		SET_CP_RESTN					(1<<2)
 #define		SET_ENC_EN					(1<<0)
 #define		BCAP_ENABLE					(1<<1)
-#define		RI_ENABLE					(1<<0)
+#define		SET_RI_ENABLE					(1<<0)
 #define		SET_RI_DBG_TRASH				(1<<7)
 #define		SET_RI_DBG_HOLD					(1<<6)
 #define		DE_GEN_ENABLE					(1<<6)
@@ -340,6 +457,22 @@
 #define		HDMI_LAYOUT0					~(1<<1)
 #define		HDMI_LAYOUT1					(1<<1)
 #define		HDMI_MODE_ENABLE				(1<<0)
-
+#define		SET_MAN_OVR					(1<<7)
+#define		SET_MAN_SDA					(1<<5)
+#define		SET_MAN_SCL					(1<<4)
+#define		HDCP_ACC					20
+#define		SET_CP_RESTN					(1<<2)
+#define		NCTSPKT_ENABLE					(1<<1)
+#define		CTS_SEL						(1<<0)
+#define		BIT_AVI_EN_REPEAT				0x0003
+#define		LD_KSV						(1<<5)
+#define		DDC_BIT_REPEATER  				(0x40)
+#define		DDC_BIT_FIFO_READY				(0x20)
+#define		DDC_BIT_FAST_I2C  				(0x10)
+#define		DDC_BSTATUS_ADDR  				(0x41) 
+#define		DDC_BSTATUS_1_ADDR				(0x41)
+#define		DDC_BSTATUS_2_ADDR				(0x42)
+#define		DDC_BIT_HDMI_MODE 				(0x10)
+#define		DDC_KSV_FIFO_ADDR 				(0x43)
 
 #endif /* NEUROS_SIL9034__H */

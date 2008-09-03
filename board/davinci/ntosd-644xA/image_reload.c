@@ -36,6 +36,7 @@
 /* see include/image.h, here add three for firmware upgrade */
 #define IH_TYPE_UBOOT           9
 #define IH_TYPE_ROOTFS          10
+#define IH_TYPE_UBL		11
 
 #define NEUROS_DESC "Neuros Official UPK"
 #define PACKAGE_ID "neuros-osd2.0"
@@ -74,7 +75,7 @@ extern long file_fat_read(const char *filename, void *buffer, unsigned long maxs
 extern int fat_register_device(block_dev_desc_t *dev_desc, int part_no);
 extern int do_nand(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[]);
 
-typedef struct u_boot_desc
+typedef struct desc_table_info
 {
     u32 magic_number;
     u32 load_entry;
@@ -82,7 +83,7 @@ typedef struct u_boot_desc
     u32 start_block;
     u32 start_page;
     u32 load_addr;
-}u_boot_desc_t;
+}desc_table_info_t;
 
 typedef struct packet_header
 {
@@ -493,7 +494,7 @@ int actual_update_uboot(ulong mem_offset, ulong offset_uboot, ulong size_uboot, 
 	uchar a[NAND_PAGE_SIZE];
 	ulong mem_off = mem_offset;
 	nand_info_t *nand;
-	u_boot_desc_t desc = {
+	desc_table_info_t uboot_desc = {
 		0xA1ACED66,
 		0x81080000,
 		0x00000180,
@@ -507,7 +508,7 @@ int actual_update_uboot(ulong mem_offset, ulong offset_uboot, ulong size_uboot, 
 	uboot_par_block_count = (size_uboot + NAND_BLOCK_SIZE - 1) / NAND_BLOCK_SIZE;
 	/* uboot block count is the block count that uboot body + uboot desc take */
 	uboot_block_count = (uboot_body_size + NAND_PAGE_SIZE + NAND_BLOCK_SIZE - 1) / NAND_BLOCK_SIZE;
-	desc.page_count = (uboot_body_size + NAND_PAGE_SIZE - 1) / NAND_PAGE_SIZE;
+	uboot_desc.page_count = (uboot_body_size + NAND_PAGE_SIZE - 1) / NAND_PAGE_SIZE;
 	printf("NAND start address: %x, size: %x \n",offset_uboot, size_uboot);
 	for (j = 0; j < uboot_par_block_count; j++)
 	{
@@ -516,14 +517,14 @@ int actual_update_uboot(ulong mem_offset, ulong offset_uboot, ulong size_uboot, 
 			printf("nand erase failed\n");
 			return(-1);
 		}
-		memcpy(a, &desc, sizeof(desc));
+		memcpy(a, &uboot_desc, sizeof(uboot_desc));
 		offset = offset_uboot + j * NAND_BLOCK_SIZE;
 		size = NAND_PAGE_SIZE;
 		rc = nand_write(nand, offset, &size, (uchar *)(a));
 		if (rc != 0 )
 		{
 			printf("write u-boot-desc failed at 0x%x, size 0x%x\n", offset, size);
-			desc.start_block++;
+			uboot_desc.start_block++;
 			continue;
 		}
 		offset = offset + NAND_PAGE_SIZE;
@@ -532,7 +533,7 @@ int actual_update_uboot(ulong mem_offset, ulong offset_uboot, ulong size_uboot, 
 		if (rc != 0 )
 		{
 			printf("write u-boot-body failed at 0x%x, size 0x%x\n", offset, size);
-			desc.start_block++;
+			uboot_desc.start_block++;
 			continue;
 		}
 		offset += size;
@@ -573,6 +574,65 @@ int actual_update_uboot(ulong mem_offset, ulong offset_uboot, ulong size_uboot, 
 		run_command("reset", 0);
 		return -1;
 	}
+}
+
+/*
+ * 5 copy in the nand flash
+ */
+static int actual_update_ubl(ulong mem_offset, ulong offset_ubl, ulong ubl_area_size, ulong ubl_size)
+{
+	int ret, i, test = 0;
+	ulong offset, size;
+	nand_info_t *nand;
+	nand_erase_options_t opts;
+	uchar a[NAND_PAGE_SIZE];
+	desc_table_info_t ubl_desc = {
+		0xA1ACED00,
+		0x00000100,
+		0x00000007,
+		0x00000001,
+		0x00000001,
+		0x00000000
+	};
+
+	nand = &nand_info[nand_curr_device];
+
+	memset(&opts, 0, sizeof(opts));
+	opts.offset = offset_ubl;
+	opts.length = ubl_area_size;
+	opts.scrub  = 1;
+	ret = nand_erase_opts(nand, &opts);
+	if (ret != 0)
+	{
+	     printf("erase the ubl area failed\n");
+	     return ret;
+	}
+
+	for (i = 0; i < 5; i++)
+	{
+	     memcpy(a, &ubl_desc, sizeof(ubl_desc));
+	     size = NAND_PAGE_SIZE;
+	     offset = offset_ubl + i * NAND_BLOCK_SIZE;
+	     ret = nand_write(nand, offset, &size, (uchar *)(a));
+	     if (ret != 0)
+	     {
+		  test++;
+		  ubl_desc.start_block++;
+		  continue;
+	     }
+	     size = NAND_BLOCK_SIZE - NAND_PAGE_SIZE;
+	     offset = offset_ubl + i * NAND_BLOCK_SIZE + NAND_PAGE_SIZE;
+	     ret = nand_write(nand, offset, &size, (uchar *)mem_offset);
+	     if(ret != 0) test++;
+	     ubl_desc.start_block++;
+	}
+	if (test == 5)
+	{
+	     printf("failed to write the ubl\n");
+	     return ret;
+	}
+
+	return 0;
 }
 
 static int actual_update(void)
@@ -660,6 +720,22 @@ static int actual_update(void)
             //show_percent(percent_num);
             continue;
         }
+	else if (iif->i_type == IH_TYPE_UBL)
+	{
+	     /* update ubl */
+	     if (strcmp(getenv("cur_ubl"), iif->i_version) >= 0)
+	     {
+		  printf("newer version ubl, needn't update\n");
+		  continue;
+	     }
+	     setenv("cur_ubl", iif->i_version);
+	     rc = actual_update_ubl(temp_ihdr, iif->i_startaddr_f,
+				    iif->i_endaddr_f - iif->i_startaddr_f +1,
+				    iif->i_imagesize - 1);
+	     if (rc != 0) return rc;
+	     saveenv();
+	     continue;
+	}
     }
 
     percent_num = 100;

@@ -136,7 +136,7 @@
 #define CONFIG_SERVERIP		192.168.1.1
 #define CONFIG_GATEWAYIP	192.168.1.1
 #define CONFIG_NETMASK		255.255.255.0
-
+#define CONFIG_ETHADDR		6E:65:75:72:6F:73
 /*===================*/
 /* Linux Information */
 /*===================*/
@@ -201,6 +201,7 @@
 #define NAND_PAGE_SIZE 2048
 #define NAND_BLOCK_SIZE (128*1024)
 #endif
-
+#define UBL_NAND_START_PAGE	64
+#define UBL_NAND_END_PAGE	383
 
 #endif /* __CONFIG_H */

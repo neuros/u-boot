@@ -940,6 +940,18 @@ static int nand_write_page (struct mtd_info *mtd, struct nand_chip *this, int pa
 			this->enable_hwecc(mtd, NAND_ECC_WRITE);
 			this->write_buf(mtd, &this->data_poi[datidx], eccsize);
 			this->calculate_ecc(mtd, &this->data_poi[datidx], ecc_code);
+#ifdef NTOSD_644XA
+			/* UBL area ecc value follow RBL */
+			if (page >= UBL_NAND_START_PAGE && page <= UBL_NAND_END_PAGE)
+			{
+				if ((ecc_code[0] == 0xff) && (ecc_code[1] == 0xff) &&
+				    (ecc_code[2] == 0xff) && (ecc_code[3] == 0xff))
+				{
+					for(i = 0; i < eccbytes; i++)
+						ecc_code[i] = 0;
+				}
+			}
+#endif
 			for (i = 0; i < eccbytes; i++, eccidx++)
 				oob_buf[oob_config[eccidx]] = ecc_code[i];
 			/* If the hardware ecc provides syndromes then

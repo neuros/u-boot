@@ -74,6 +74,20 @@ static void nand_davinci_hwcontrol(struct mtd_info *mtd, int cmd)
 /* Set WP on deselect, write enable on select */
 static void nand_davinci_select_chip(struct mtd_info *mtd, int chip)
 {
+#ifdef NTOSD_644XA
+
+#define GPIO_DIR23	0x01c67038
+#define GPIO_OUT_DATA23 0x01c6703c
+#define GPIO_NAND_WP	0x00000200
+
+	REG(GPIO_DIR23) &= ~ GPIO_NAND_WP; /* set output */
+	if (chip < 0){
+	     REG(GPIO_OUT_DATA23) &= ~ GPIO_NAND_WP;
+	} else {
+	     REG(GPIO_OUT_DATA23) |= GPIO_NAND_WP;
+	}
+#else
+
 #define GPIO_SET_DATA01	0x01c67018
 #define GPIO_CLR_DATA01	0x01c6701c
 #define GPIO_NAND_WP	(1 << 4)
@@ -83,6 +97,8 @@ static void nand_davinci_select_chip(struct mtd_info *mtd, int chip)
 	} else {
 		REG(GPIO_SET_DATA01) |= GPIO_NAND_WP;
 	}
+#endif
+
 #endif
 }
 

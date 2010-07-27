@@ -13,6 +13,13 @@
 *~
 
 #
+# symbolic links
+#
+
+include/asm-arm/arch
+include/asm-arm/proc
+
+#
 # Top-level generic files
 #
 
